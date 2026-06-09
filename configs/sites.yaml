@@ -1,0 +1,23 @@
+check_interval: 10s
+timeout: 10s
+sites:
+  - name: "Google"
+    url: "https://google.com"
+  - name: "GitHub"
+    url: "https://github.com"
+  - name: "Not existing site"
+    url: "https://unavailable-123-qwerty-site.com"
+  - name: "Microsoft"
+    url: "https://microsoft.com"
+  - name: "Localhost"
+    url: "http://localhost:8080"
+  - name: "VK"
+    url: "https://vk.com"
+  - name: "AMD"
+    url: "https://amd.com"
+  - name: "Nvidia"
+    url: "https://nvidia.com"
+  - name: "Gmail"
+    url: "https://gmail.com"
+  - name: "Bad Protocol"
+    url: "jajahaha123123.qweqwe"

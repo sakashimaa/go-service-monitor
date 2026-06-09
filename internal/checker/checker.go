@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
+
+	"github.com/sakashimaa/site-monitor/internal/config"
 )
 
 type Result struct {
@@ -14,9 +15,9 @@ type Result struct {
 	Error           error
 }
 
-func CheckSite(url string) Result {
+func CheckSite(url string, config *config.Config) Result {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: config.Timeout,
 	}
 	resp, err := client.Get(url)
 	if err != nil {
