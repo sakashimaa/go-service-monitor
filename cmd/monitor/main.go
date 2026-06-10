@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/sakashimaa/site-monitor/internal/checker"
 	"github.com/sakashimaa/site-monitor/internal/config"
+	scheduler2 "github.com/sakashimaa/site-monitor/internal/scheduler"
 )
 
 func main() {
@@ -18,13 +22,14 @@ func main() {
 		log.Fatalf("Fatal error: %v", err)
 	}
 
-	for _, site := range cfg.Sites {
-		res := checker.CheckSite(site.URL, cfg)
-		if !res.AvailableStatus {
-			fmt.Printf("Site %s (%s) is NOT ok\n", site.Name, site.URL)
-			continue
-		}
+	scheduler := scheduler2.NewScheduler(cfg)
+	go scheduler.Start()
 
-		fmt.Printf("Site %s (%s) ok\n", site.Name, site.URL)
-	}
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, os.Interrupt)
+	defer cancel()
+
+	<-ctx.Done()
+
+	fmt.Println("Shutting down gracefully...")
+	scheduler.Stop()
 }

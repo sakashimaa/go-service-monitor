@@ -1,4 +1,4 @@
-check_interval: 10s
+check_interval: 1s
 timeout: 10s
 sites:
   - name: "Google"
