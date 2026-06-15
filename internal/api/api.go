@@ -2,24 +2,24 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/sakashimaa/site-monitor/internal/config"
+	"github.com/sakashimaa/site-monitor/internal/handler"
 )
 
 type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg *config.Config) *Server {
+func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 	mainMux := http.NewServeMux()
 
 	v1Mux := http.NewServeMux()
 
-	v1Mux.HandleFunc("GET /ping", pingHandler)
+	v1Mux.HandleFunc("GET /ping", siteHandler.Ping)
+	v1Mux.HandleFunc("GET /sites", siteHandler.Sites)
 	mainMux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1Mux))
 
 	srv := &http.Server{
@@ -41,20 +41,4 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
-}
-
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	resp := map[string]any{
-		"message": "pong",
-	}
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		slog.Error("payload encoding error",
-			slog.String("handler", "pingHandler"),
-			slog.String("error", err.Error()))
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }

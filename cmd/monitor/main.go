@@ -12,7 +12,11 @@ import (
 
 	"github.com/sakashimaa/site-monitor/internal/api"
 	"github.com/sakashimaa/site-monitor/internal/config"
+	"github.com/sakashimaa/site-monitor/internal/domain"
+	"github.com/sakashimaa/site-monitor/internal/handler"
+	"github.com/sakashimaa/site-monitor/internal/repository"
 	scheduler2 "github.com/sakashimaa/site-monitor/internal/scheduler"
+	"github.com/sakashimaa/site-monitor/internal/service"
 )
 
 func main() {
@@ -28,7 +32,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	apiServer := api.NewServer(cfg)
+	data := make(map[int]domain.Site, len(cfg.Sites))
+	for i, site := range cfg.Sites {
+		data[i] = domain.Site{
+			ID:   i,
+			Name: site.Name,
+			URL:  site.URL,
+		}
+	}
+	repo := repository.NewSiteRepository(data)
+	service := service.NewSiteService(repo)
+	handler := handler.NewSiteHandler(service)
+
+	apiServer := api.NewServer(cfg, handler)
 
 	scheduler := scheduler2.NewScheduler(cfg)
 
