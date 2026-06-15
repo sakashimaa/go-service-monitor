@@ -1,0 +1,23 @@
+version: 2
+
+run:
+  timeout: 5m
+  go: '1.25'
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # проверяет что все ошибки обрабатываются
+    - govet         # классический линтер от разработчиков Go
+    - ineffassign   # ищет переменные, которым присвоили значение, но не использовали
+    - staticcheck   # мощнейший статический анализатор
+    - gocritic      # ловит антипаттерны
+    - gosec         # ищет уязвимости в безопасности
+    - unused        # неиспользуемые константы, функции и типы
+
+formatters:
+  enable:
+    - goimports
+
+issues:
+  exclude-use-default: false
