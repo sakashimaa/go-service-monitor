@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/google/uuid"
 	"github.com/sakashimaa/site-monitor/internal/api"
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/domain"
@@ -32,10 +33,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	data := make(map[int]domain.Site, len(cfg.Sites))
-	for i, site := range cfg.Sites {
-		data[i] = domain.Site{
-			ID:   i,
+	data := make(map[string]domain.Site, len(cfg.Sites))
+	for _, site := range cfg.Sites {
+		id := uuid.New().String()
+		data[id] = domain.Site{
+			ID:   id,
 			Name: site.Name,
 			URL:  site.URL,
 		}
@@ -46,7 +48,7 @@ func main() {
 
 	apiServer := api.NewServer(cfg, handler)
 
-	scheduler := scheduler2.NewScheduler(cfg)
+	scheduler := scheduler2.NewScheduler(cfg, repo)
 
 	slog.Info(
 		"Site Monitor started",

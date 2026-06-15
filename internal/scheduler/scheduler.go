@@ -1,25 +1,29 @@
 package scheduler
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/sakashimaa/site-monitor/internal/checker"
 	"github.com/sakashimaa/site-monitor/internal/config"
+	"github.com/sakashimaa/site-monitor/internal/repository"
 )
 
 type Scheduler struct {
 	Config *config.Config
 	done   chan struct{}
 	wg     sync.WaitGroup
+	repo   repository.SiteRepository
 }
 
-func NewScheduler(config *config.Config) *Scheduler {
+func NewScheduler(config *config.Config, repo repository.SiteRepository) *Scheduler {
 	return &Scheduler{
 		Config: config,
 		done:   make(chan struct{}),
 		wg:     sync.WaitGroup{},
+		repo:   repo,
 	}
 }
 
@@ -31,10 +35,18 @@ func (s *Scheduler) Start() {
 	defer ticker.Stop()
 
 	checkAll := func() {
-		for _, site := range s.Config.Sites {
+		sites, err := s.repo.GetAll(context.Background())
+		if err != nil {
+			slog.Error("failed to retrieve sites from repo", slog.String("error", err.Error()))
+			return
+		}
+
+		// в будущем на больших объемах надо будет переписать на конкуретную обработку при помощи горутин
+		for _, site := range sites {
 			res := checker.CheckSite(site.URL, s.Config)
 			if res.Error != nil {
-				slog.Error("site check failed",
+				slog.Error(
+					"site check failed",
 					slog.String("url", site.URL),
 					slog.String("error", res.Error.Error()),
 				)
@@ -42,12 +54,14 @@ func (s *Scheduler) Start() {
 			}
 
 			if res.AvailableStatus {
-				slog.Info("site ok",
+				slog.Info(
+					"site ok",
 					slog.String("url", site.URL),
 					slog.Int("status_code", res.ResponseCode),
 				)
 			} else {
-				slog.Warn("site NOT ok",
+				slog.Warn(
+					"site NOT ok",
 					slog.String("url", site.URL),
 					slog.Int("status_code", res.ResponseCode),
 				)

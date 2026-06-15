@@ -20,6 +20,8 @@ func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 
 	v1Mux.HandleFunc("GET /ping", siteHandler.Ping)
 	v1Mux.HandleFunc("GET /sites", siteHandler.Sites)
+	v1Mux.HandleFunc("POST /sites", siteHandler.CreateSite)
+
 	mainMux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1Mux))
 
 	srv := &http.Server{

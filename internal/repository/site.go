@@ -2,26 +2,44 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 
 	"github.com/sakashimaa/site-monitor/internal/domain"
 )
 
+var ErrURLAlreadyExists = errors.New("URL already exists")
+
 type SiteRepository interface {
 	GetAll(ctx context.Context) ([]domain.Site, error)
+	Create(ctx context.Context, req *domain.Site) error
 }
 
 type InMemoryRepo struct {
-	data map[int]domain.Site
+	data map[string]domain.Site
 	mu   sync.RWMutex
 }
 
-func NewSiteRepository(data map[int]domain.Site) SiteRepository {
+func NewSiteRepository(data map[string]domain.Site) SiteRepository {
 	return &InMemoryRepo{
 		data: data,
 		mu:   sync.RWMutex{},
 	}
+}
+
+func (r *InMemoryRepo) Create(ctx context.Context, req *domain.Site) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, v := range r.data {
+		if v.URL == req.URL {
+			return ErrURLAlreadyExists
+		}
+	}
+
+	r.data[req.ID] = *req
+	return nil
 }
 
 func (r *InMemoryRepo) GetAll(ctx context.Context) ([]domain.Site, error) {
