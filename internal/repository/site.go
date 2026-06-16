@@ -9,11 +9,15 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/domain"
 )
 
-var ErrURLAlreadyExists = errors.New("URL already exists")
+var (
+	ErrURLAlreadyExists = errors.New("URL already exists")
+	ErrSiteNotFound     = errors.New("site not found")
+)
 
 type SiteRepository interface {
 	GetAll(ctx context.Context) ([]domain.Site, error)
 	Create(ctx context.Context, req *domain.Site) error
+	Delete(ctx context.Context, id string) error
 }
 
 type InMemoryRepo struct {
@@ -26,6 +30,18 @@ func NewSiteRepository(data map[string]domain.Site) SiteRepository {
 		data: data,
 		mu:   sync.RWMutex{},
 	}
+}
+
+func (r *InMemoryRepo) Delete(ctx context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.data[id]; !ok {
+		return ErrSiteNotFound
+	}
+
+	delete(r.data, id)
+	return nil
 }
 
 func (r *InMemoryRepo) Create(ctx context.Context, req *domain.Site) error {

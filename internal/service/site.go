@@ -11,6 +11,7 @@ import (
 type SiteService interface {
 	GetAll(ctx context.Context) ([]domain.Site, error)
 	CreateSite(ctx context.Context, req *domain.CreateSiteRequest) (*domain.Site, error)
+	DeleteSite(ctx context.Context, id string) error
 }
 
 type SiteServ struct {
@@ -19,6 +20,10 @@ type SiteServ struct {
 
 func NewSiteService(repo repository.SiteRepository) SiteService {
 	return &SiteServ{repo: repo}
+}
+
+func (s *SiteServ) DeleteSite(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
 }
 
 func (s *SiteServ) GetAll(ctx context.Context) ([]domain.Site, error) {

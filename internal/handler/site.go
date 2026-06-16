@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/lib"
 	"github.com/sakashimaa/site-monitor/internal/repository"
@@ -16,6 +17,7 @@ type SiteHandler interface {
 	Ping(w http.ResponseWriter, r *http.Request)
 	Sites(w http.ResponseWriter, r *http.Request)
 	CreateSite(w http.ResponseWriter, r *http.Request)
+	DeleteSite(w http.ResponseWriter, r *http.Request)
 }
 
 type HTTPHandler struct {
@@ -26,6 +28,29 @@ func NewSiteHandler(service service.SiteService) SiteHandler {
 	return &HTTPHandler{
 		service: service,
 	}
+}
+
+func (h *HTTPHandler) DeleteSite(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if _, err := uuid.Parse(id); err != nil {
+		http.Error(w, "invalid id format: must be uuid", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.DeleteSite(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrSiteNotFound) {
+			http.Error(w, "site not found", http.StatusNotFound)
+			return
+		}
+
+		slog.Error("failed to delete site", slog.String("error", err.Error()))
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *HTTPHandler) CreateSite(w http.ResponseWriter, r *http.Request) {
