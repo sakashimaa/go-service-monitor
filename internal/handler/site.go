@@ -18,6 +18,7 @@ type SiteHandler interface {
 	Sites(w http.ResponseWriter, r *http.Request)
 	CreateSite(w http.ResponseWriter, r *http.Request)
 	DeleteSite(w http.ResponseWriter, r *http.Request)
+	SiteStatus(w http.ResponseWriter, r *http.Request)
 }
 
 type HTTPHandler struct {
@@ -27,6 +28,30 @@ type HTTPHandler struct {
 func NewSiteHandler(service service.SiteService) SiteHandler {
 	return &HTTPHandler{
 		service: service,
+	}
+}
+
+func (h *HTTPHandler) SiteStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if _, err := uuid.Parse(id); err != nil {
+		http.Error(w, "invalid id format: must be uuid", http.StatusBadRequest)
+		return
+	}
+
+	status, err := h.service.GetStatus(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrSiteNotFound) {
+			http.Error(w, "site not found", http.StatusNotFound)
+			return
+		}
+		slog.Error("failed to get site status", slog.String("error", err.Error()))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	if err := lib.WriteJSON(w, http.StatusOK, status); err != nil {
+		slog.Error("encode resp failed", slog.String("error", err.Error()), slog.String("handler", "SiteStatus"))
 	}
 }
 

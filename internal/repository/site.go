@@ -18,18 +18,53 @@ type SiteRepository interface {
 	GetAll(ctx context.Context) ([]domain.Site, error)
 	Create(ctx context.Context, req *domain.Site) error
 	Delete(ctx context.Context, id string) error
+	GetStatus(ctx context.Context, id string) (domain.SiteStatus, error)
+	UpdateStatus(ctx context.Context, id string, status domain.SiteStatus) error
 }
 
 type InMemoryRepo struct {
-	data map[string]domain.Site
-	mu   sync.RWMutex
+	data     map[string]domain.Site
+	statuses map[string]domain.SiteStatus
+	mu       sync.RWMutex
 }
 
 func NewSiteRepository(data map[string]domain.Site) SiteRepository {
-	return &InMemoryRepo{
-		data: data,
-		mu:   sync.RWMutex{},
+	statuses := make(map[string]domain.SiteStatus, len(data))
+	for id, site := range data {
+		statuses[id] = domain.SiteStatus{
+			URL:    site.URL,
+			Status: domain.StatusPending,
+		}
 	}
+
+	return &InMemoryRepo{
+		data:     data,
+		statuses: statuses,
+		mu:       sync.RWMutex{},
+	}
+}
+
+func (r *InMemoryRepo) GetStatus(ctx context.Context, id string) (domain.SiteStatus, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if _, ok := r.data[id]; !ok {
+		return domain.SiteStatus{}, ErrSiteNotFound
+	}
+
+	return r.statuses[id], nil
+}
+
+func (r *InMemoryRepo) UpdateStatus(ctx context.Context, id string, status domain.SiteStatus) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.data[id]; !ok {
+		return ErrSiteNotFound
+	}
+
+	r.statuses[id] = status
+	return nil
 }
 
 func (r *InMemoryRepo) Delete(ctx context.Context, id string) error {
@@ -41,6 +76,7 @@ func (r *InMemoryRepo) Delete(ctx context.Context, id string) error {
 	}
 
 	delete(r.data, id)
+	delete(r.statuses, id)
 	return nil
 }
 
@@ -55,6 +91,10 @@ func (r *InMemoryRepo) Create(ctx context.Context, req *domain.Site) error {
 	}
 
 	r.data[req.ID] = *req
+	r.statuses[req.ID] = domain.SiteStatus{
+		URL:    req.URL,
+		Status: domain.StatusPending,
+	}
 	return nil
 }
 

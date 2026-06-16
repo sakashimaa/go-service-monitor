@@ -18,6 +18,7 @@ func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 
 	v1Mux := http.NewServeMux()
 
+	v1Mux.HandleFunc("GET /sites/{id}/status", siteHandler.SiteStatus)
 	v1Mux.HandleFunc("GET /ping", siteHandler.Ping)
 	v1Mux.HandleFunc("GET /sites", siteHandler.Sites)
 	v1Mux.HandleFunc("POST /sites", siteHandler.CreateSite)

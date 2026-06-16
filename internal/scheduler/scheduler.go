@@ -8,6 +8,7 @@ import (
 
 	"github.com/sakashimaa/site-monitor/internal/checker"
 	"github.com/sakashimaa/site-monitor/internal/config"
+	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/repository"
 )
 
@@ -44,6 +45,33 @@ func (s *Scheduler) Start() {
 		// в будущем на больших объемах надо будет переписать на конкуретную обработку при помощи горутин
 		for _, site := range sites {
 			res := checker.CheckSite(site.URL, s.Config)
+
+			now := time.Now()
+			code := res.ResponseCode
+			durationMs := res.ResponseTime.Milliseconds()
+
+			statusVal := domain.StatusOK
+			var errStr *string
+
+			if res.Error != nil || !res.AvailableStatus {
+				statusVal = domain.StatusError
+				if res.Error != nil {
+					e := res.Error.Error()
+					errStr = &e
+				}
+			}
+
+			status := domain.SiteStatus{
+				URL:           site.URL,
+				Status:        statusVal,
+				ResponseCode:  &code,
+				LastCheckTime: &now,
+				ResponseTime:  &durationMs,
+				Error:         errStr,
+			}
+
+			s.repo.UpdateStatus(context.Background(), site.ID, status)
+
 			if res.Error != nil {
 				slog.Error(
 					"site check failed",
