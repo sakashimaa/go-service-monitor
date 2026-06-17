@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sakashimaa/site-monitor/internal/domain"
@@ -19,15 +20,50 @@ type SiteHandler interface {
 	CreateSite(w http.ResponseWriter, r *http.Request)
 	DeleteSite(w http.ResponseWriter, r *http.Request)
 	SiteStatus(w http.ResponseWriter, r *http.Request)
+	HealhCheck(w http.ResponseWriter, r *http.Request)
 }
 
 type HTTPHandler struct {
-	service service.SiteService
+	service   service.SiteService
+	startTime time.Time
+	version   string
 }
 
-func NewSiteHandler(service service.SiteService) SiteHandler {
+func NewSiteHandler(service service.SiteService, version string) SiteHandler {
 	return &HTTPHandler{
-		service: service,
+		service:   service,
+		startTime: time.Now(),
+		version:   version,
+	}
+}
+
+func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
+	status := "healthy"
+	httpCode := http.StatusOK
+	deps := make(map[string]string)
+
+	// будущая проверка зависимостей
+	// пример:
+	//
+	// err := h.service.PingDB(r.Context())
+	// if err != nil {
+	// 		deps["database"] = "unhealthy"
+	// 		status = "unhealthy"
+	// 		httpCode = http.StatusServiceUnavailable
+	// } else {
+	// 		deps["database"] = "healhy"
+	// }
+
+	resp := domain.HealthResponse{
+		Status:       status,
+		Version:      h.version,
+		Uptime:       time.Since(h.startTime).String(),
+		Timestamp:    time.Now(),
+		Dependencies: deps,
+	}
+
+	if err := lib.WriteJSON(w, httpCode, resp); err != nil {
+		slog.Error("failed to write health response", slog.String("error", err.Error()))
 	}
 }
 

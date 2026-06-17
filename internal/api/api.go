@@ -23,6 +23,7 @@ func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 	v1Mux.HandleFunc("GET /sites", siteHandler.Sites)
 	v1Mux.HandleFunc("POST /sites", siteHandler.CreateSite)
 	v1Mux.HandleFunc("DELETE /sites/{id}", siteHandler.DeleteSite)
+	v1Mux.HandleFunc("GET /health", siteHandler.HealhCheck)
 
 	mainMux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1Mux))
 

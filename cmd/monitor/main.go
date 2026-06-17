@@ -20,6 +20,10 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/service"
 )
 
+// может быть перезаписана при сборке
+// go build -ldflags "-X main.buildVersion=v1.4.2"
+var buildVersion = "v1.0.0-dev"
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -44,7 +48,7 @@ func main() {
 	}
 	repo := repository.NewSiteRepository(data)
 	service := service.NewSiteService(repo)
-	handler := handler.NewSiteHandler(service)
+	handler := handler.NewSiteHandler(service, buildVersion)
 
 	apiServer := api.NewServer(cfg, handler)
 
