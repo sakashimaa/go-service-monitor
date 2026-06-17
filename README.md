@@ -32,3 +32,17 @@
     ```bash
       sudo pacman -S golangci-lint
     ```
+
+### Swagger и автогенерация документации
+
+1. Установка генератора (CLI-утилита):
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+```
+
+2. Генерация (в корне проекта)
+
+```bash
+swag init -g cmd/monitor/main.go
+```

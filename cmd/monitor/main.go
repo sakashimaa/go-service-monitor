@@ -24,6 +24,11 @@ import (
 // go build -ldflags "-X main.buildVersion=v1.4.2"
 var buildVersion = "v1.0.0-dev"
 
+// @title 				Go Service Monitor API
+// @version 			1.0.0
+// @description 	API для мониторинга доступности сайтов
+// @host					localhost:8080
+// @BasePath			/api/v1
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)

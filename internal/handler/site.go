@@ -37,6 +37,13 @@ func NewSiteHandler(service service.SiteService, version string) SiteHandler {
 	}
 }
 
+// HealthCheck godoc
+// @Summary				Проверка доступности (здоровья) сервиса
+// @Description		Возвращает текущий статус сервиса, аптайи, версию и статус зависимостей (пока пусто)
+// @Tags					system
+// @Produce				json
+// @Success				200	{object}	domain.HealthResponse
+// @Router				/health [get]
 func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	httpCode := http.StatusOK
@@ -67,6 +74,16 @@ func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SiteStatus godoc
+// @Summary      Статус сайта
+// @Description  Возвращает результаты последней проверки сайта
+// @Tags         sites
+// @Produce      json
+// @Param        id   path      string  true  "id сайта"
+// @Success      200  {object}  domain.SiteStatus
+// @Failure      400  {string}  string "invalid id format"
+// @Failure      404  {string}  string "site not found"
+// @Router       /sites/{id}/status [get]
 func (h *HTTPHandler) SiteStatus(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -91,6 +108,15 @@ func (h *HTTPHandler) SiteStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteSite godoc
+// @Summary      Удалить сайт
+// @Description  Удаляет сайт из мониторинга по его UUID
+// @Tags         sites
+// @Param        id   path      string  true  "UUID сайта"
+// @Success      204  "No Content"
+// @Failure      400  {string}  string "invalid id format"
+// @Failure      404  {string}  string "site not found"
+// @Router       /sites/{id} [delete]
 func (h *HTTPHandler) DeleteSite(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -114,6 +140,17 @@ func (h *HTTPHandler) DeleteSite(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// CreateSite godoc
+// @Summary      Добавить сайт
+// @Description  Добавляет новый сайт для проверки
+// @Tags         sites
+// @Accept       json
+// @Produce      json
+// @Param        request body domain.CreateSiteRequest true "Данные сайта"
+// @Success      201  {object}  domain.Site
+// @Failure      400  {string}  string "invalid json body или ошибка валидации"
+// @Failure      409  {string}  string "url already exists"
+// @Router       /sites [post]
 func (h *HTTPHandler) CreateSite(w http.ResponseWriter, r *http.Request) {
 	var req domain.CreateSiteRequest
 
@@ -143,9 +180,16 @@ func (h *HTTPHandler) CreateSite(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Ping godoc
+// @Summary				Пинг-понг
+// @Description 	Быстрая проверка доступности сервиса
+// @Tags 					system
+// @Produce				json
+// @Success				200	{object}	domain.PingResponse
+// @Router				/ping [get]
 func (h *HTTPHandler) Ping(w http.ResponseWriter, r *http.Request) {
-	resp := map[string]any{
-		"message": "pong",
+	resp := domain.PingResponse{
+		Message: "pong",
 	}
 
 	if err := lib.WriteJSON(w, http.StatusOK, resp); err != nil {
@@ -153,6 +197,13 @@ func (h *HTTPHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Sites godoc
+// @Summary      Список сайтов
+// @Description  Получить список всех сайтов, находящихся на мониторинге
+// @Tags         sites
+// @Produce      json
+// @Success      200  {array}   domain.Site
+// @Router       /sites [get]
 func (h *HTTPHandler) Sites(w http.ResponseWriter, r *http.Request) {
 	res, err := h.service.GetAll(r.Context())
 	if err != nil {

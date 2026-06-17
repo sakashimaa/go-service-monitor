@@ -7,6 +7,9 @@ import (
 
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/handler"
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	_ "github.com/sakashimaa/site-monitor/docs"
 )
 
 type Server struct {
@@ -26,6 +29,10 @@ func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 	v1Mux.HandleFunc("GET /health", siteHandler.HealhCheck)
 
 	mainMux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1Mux))
+
+	mainMux.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
