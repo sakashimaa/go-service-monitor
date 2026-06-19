@@ -20,7 +20,7 @@ type SiteHandler interface {
 	CreateSite(w http.ResponseWriter, r *http.Request)
 	DeleteSite(w http.ResponseWriter, r *http.Request)
 	SiteStatus(w http.ResponseWriter, r *http.Request)
-	HealhCheck(w http.ResponseWriter, r *http.Request)
+	HealthCheck(w http.ResponseWriter, r *http.Request)
 }
 
 type HTTPHandler struct {
@@ -44,7 +44,7 @@ func NewSiteHandler(service service.SiteService, version string) SiteHandler {
 // @Produce				json
 // @Success				200	{object}	domain.HealthResponse
 // @Router				/health [get]
-func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	httpCode := http.StatusOK
 	deps := make(map[string]string)
@@ -58,7 +58,7 @@ func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
 	// 		status = "unhealthy"
 	// 		httpCode = http.StatusServiceUnavailable
 	// } else {
-	// 		deps["database"] = "healhy"
+	// 		deps["database"] = "healthy"
 	// }
 
 	resp := domain.HealthResponse{
@@ -74,7 +74,7 @@ func (h *HTTPHandler) HealhCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// SiteStatus godoc
+// SiteStatus GoDoc
 // @Summary      Статус сайта
 // @Description  Возвращает результаты последней проверки сайта
 // @Tags         sites
