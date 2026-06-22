@@ -46,3 +46,23 @@ go install github.com/swaggo/swag/cmd/swag@latest
 ```bash
 swag init -g cmd/monitor/main.go
 ```
+
+### Контейнеризация (Docker)
+
+1. Сборка образа (запускать в корне)
+
+```bash
+docker build -t site-monitor .
+```
+
+2. Проверка размера образа
+
+```bash
+docker images | grep site-monitor
+```
+
+3. Запуск контейнера
+
+```bash
+docker run -p 8080:8080 site-monitor
+```
