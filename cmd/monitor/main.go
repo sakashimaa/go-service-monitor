@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sakashimaa/site-monitor/internal/api"
@@ -18,6 +20,7 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/repository"
 	scheduler2 "github.com/sakashimaa/site-monitor/internal/scheduler"
 	"github.com/sakashimaa/site-monitor/internal/service"
+	"github.com/sakashimaa/site-monitor/internal/storage"
 )
 
 // может быть перезаписана при сборке
@@ -51,11 +54,26 @@ func main() {
 			URL:  site.URL,
 		}
 	}
-	repo := repository.NewSiteRepository(data)
-	service := service.NewSiteService(repo)
-	handler := handler.NewSiteHandler(service, buildVersion)
 
-	apiServer := api.NewServer(cfg, handler)
+	dbURL := os.Getenv("DATABASE_URL")
+
+	dbCtx, cancelDB := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelDB()
+
+	dbPool, err := storage.NewPostgresPool(dbCtx, dbURL)
+	if err != nil {
+		slog.Error("failed to create postgres pool", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer dbPool.Close()
+
+	slog.Info("successfully connected to PostgreSQL")
+
+	repo := repository.NewSiteRepository(data)
+	srv := service.NewSiteService(repo, dbPool)
+	hndl := handler.NewSiteHandler(srv, buildVersion)
+
+	apiServer := api.NewServer(cfg, hndl)
 
 	scheduler := scheduler2.NewScheduler(cfg, repo)
 
@@ -74,7 +92,7 @@ func main() {
 		slog.Info("Starting HTTP server", slog.Int("port", cfg.Port))
 
 		err := apiServer.Start()
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("HTTP Server start failed", slog.String("error", err.Error()))
 			os.Exit(1)
 		}

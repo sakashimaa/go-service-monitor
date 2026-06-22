@@ -49,17 +49,15 @@ func (h *HTTPHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	httpCode := http.StatusOK
 	deps := make(map[string]string)
 
-	// будущая проверка зависимостей
-	// пример:
-	//
-	// err := h.service.PingDB(r.Context())
-	// if err != nil {
-	// 		deps["database"] = "unhealthy"
-	// 		status = "unhealthy"
-	// 		httpCode = http.StatusServiceUnavailable
-	// } else {
-	// 		deps["database"] = "healthy"
-	// }
+	err := h.service.PingDB(r.Context())
+	if err != nil {
+		slog.Error("healthcheck: database is unreachable", slog.String("error", err.Error()))
+		deps["database"] = "unhealthy"
+		status = "unhealthy"
+		httpCode = http.StatusServiceUnavailable
+	} else {
+		deps["database"] = "healthy"
+	}
 
 	resp := domain.HealthResponse{
 		Status:       status,

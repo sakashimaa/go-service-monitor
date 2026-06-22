@@ -66,3 +66,17 @@ docker images | grep site-monitor
 ```bash
 docker run -p 8080:8080 site-monitor
 ```
+
+### Docker-compose
+
+1. Запуск и сборка
+
+```bash
+docker compose up --build -d
+```
+
+2. Проверка контейнеров
+
+```bash
+docker ps
+```
