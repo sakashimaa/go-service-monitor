@@ -23,6 +23,7 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/storage"
 )
 
+// test change
 // может быть перезаписана при сборке
 // go build -ldflags "-X main.buildVersion=v1.4.2"
 var buildVersion = "v1.0.0-dev"
