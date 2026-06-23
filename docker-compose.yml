@@ -44,3 +44,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Пробрасываем локальную папку ./configs внутрь контейнера чтоб он подхватывался без перезапуска. :ro означает readonly
+    # Чтоб приложене случайно не затерло конфиг
+    volumes:
+      - ./configs:/app/configs:ro
