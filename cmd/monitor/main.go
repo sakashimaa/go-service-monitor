@@ -45,6 +45,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	slog.Info(
+		"Configuration loaded",
+		slog.Int("port", cfg.Port),
+		slog.String("log_level", cfg.LogLevel),
+		slog.String("check_interval", cfg.CheckInterval.String()),
+		slog.String("http_timeout", cfg.Timeout.String()),
+	)
+
 	data := make(map[string]domain.Site, len(cfg.Sites))
 	for _, site := range cfg.Sites {
 		id := uuid.New().String()
@@ -55,12 +63,10 @@ func main() {
 		}
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-
 	dbCtx, cancelDB := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelDB()
 
-	dbPool, err := storage.NewPostgresPool(dbCtx, dbURL)
+	dbPool, err := storage.NewPostgresPool(dbCtx, cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("failed to create postgres pool", slog.String("error", err.Error()))
 		os.Exit(1)
