@@ -1,112 +1,170 @@
-## Site monitor
+# Site Monitor
 
-### Назначение сервиса
+## Назначение сервиса
+
 Данный сервис предназначен для мониторинга работы и доступности сайтов по адресам, указанным в конфигурации
 
-### Инструкции по работе с программой
+---
 
-- Сборка
-    ```bash
-      go build ./...
-    ```
-- Запуск
-    ```bash
-      go run cmd/monitor/main.go
-    ```
+## Команды Make
 
-- Проверка кода линтером
-    ```bash
-      golangci-lint run
-    ```
-  
-### Установка линтера
+Полный список доступных команд:
 
-- MacOS
-    ```bash
-      brew install golangci/tap/golangci-lint
-    ```
-- Arch Linux
-    ```bash
-      yay -S golangci-lint
-    ```
-    ```bash
-      sudo pacman -S golangci-lint
-    ```
+```bash
+make help
+```
 
-### Swagger и автогенерация документации
+| Команда            | Описание                                           |
+|--------------------|----------------------------------------------------|
+| `make build`       | Локальная сборка бинарника в `bin/`                |
+| `make docker-build`| Сборка Docker-образа                               |
+| `make clean`       | Очистка артефактов сборки (`bin/`)                 |
+| `make run`         | Генерация Swagger-документации и запуск сервиса    |
+| `make up`          | Сборка и запуск контейнеров                        |
+| `make down`        | Остановка контейнеров (данные БД сохраняются)      |
+| `make restart`     | Перезапуск контейнеров                             |
+| `make deps`        | Загрузка и актуализация зависимостей               |
+| `make fmt`         | Форматирование всего проекта                       |
+| `make lint`        | Проверка линтером                                  |
+| `make test`        | Запуск тестов                                      |
+| `make swag`        | Генерация Swagger-документации                     |
+| `make migrate-up`  | Применение миграций БД                             |
+| `make migrate-down`| Откат миграций БД                                  |
+| `make db-reset`    | Удаление данных БД и перезапуск контейнера postgres|
+| `make logs`        | Просмотр логов контейнеров в реальном времени      |
+| `make ps`          | Просмотр статуса запущенных контейнеров            |
+| `make shell`       | Интерактивная консоль внутри контейнера приложения |
 
-1. Установка генератора (CLI-утилита):
+---
+
+## Локальная разработка
+
+Загрузка зависимостей:
+
+```bash
+make deps
+```
+
+Сборка бинарника:
+
+```bash
+make build
+```
+
+Запуск (с автогенерацией Swagger):
+
+```bash
+make run
+```
+
+Форматирование кода:
+
+```bash
+make fmt
+```
+
+Проверка линтером:
+
+```bash
+make lint
+```
+
+Запуск тестов:
+
+```bash
+make test
+```
+
+---
+
+## Установка линтера
+
+**macOS:**
+
+```bash
+brew install golangci/tap/golangci-lint
+```
+
+**Arch Linux:**
+
+```bash
+yay -S golangci-lint
+# или
+sudo pacman -S golangci-lint
+# или
+sudo snap install golangci-lint --classic
+```
+
+---
+
+## Swagger
+
+Установка генератора (однократно):
 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
 ```
 
-2. Генерация (в корне проекта)
+Генерация документации:
 
 ```bash
-swag init -g cmd/monitor/main.go
+make swag
 ```
 
-### Контейнеризация (Docker)
+---
 
-1. Сборка образа (запускать в корне)
+## Контейнеризация
+
+Сборка образа:
 
 ```bash
-docker build -t site-monitor .
+make docker-build
 ```
 
-2. Проверка размера образа
+Запуск всего стека (сборка + старт):
 
 ```bash
-docker images | grep site-monitor
+make up
 ```
 
-3. Запуск контейнера
+Просмотр логов:
 
 ```bash
-docker run -p 8080:8080 site-monitor
+make logs
 ```
 
-### Docker-compose
-
-1. Запуск и сборка
+Просмотр статуса контейнеров:
 
 ```bash
-docker compose up --build -d
+make ps
 ```
 
-2. Проверка контейнеров
+Открыть shell внутри контейнера приложения:
 
 ```bash
-docker ps
+make shell
 ```
 
-### Управление данными (Docker volumes)
+---
 
-База данных PostgreSQL в докере использует Volumes для персистентного хранения данных. Это значит что данные не потеряются при перезапуске или падении контейнера
+## Управление данными (Docker Volumes)
 
-### Полезные команды для работы с докером
+База данных PostgreSQL использует Docker Volumes для персистентного хранения данных — они сохраняются при перезапусках и падениях контейнера.
 
-1. Остановить проект (данные БД сохранятся)
+Остановить проект (данные БД сохранятся):
 
 ```bash
-docker compose down
+make down
 ```
 
-2. Остановить проект и полностью удалить данные (volumes)
+Перезапустить контейнеры (например, после правки `configs/sites.yaml`):
 
 ```bash
-docker compose down -v
+make restart
 ```
 
-3. Посмотреть список всех volumes в системе
+Полный сброс: удалить данные БД и поднять только postgres заново:
 
 ```bash
-docker volumes ls
-```
-
-4. Перезапустить приложение (нужно к примеру если мы во время работы приложения отредактировали configs/sites.yaml и хотим чтоб оно обновилось)
-
-```bash
-docker restart monitor-app
+make db-reset
 ```

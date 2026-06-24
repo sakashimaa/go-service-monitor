@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/sakashimaa/site-monitor/internal/api"
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/domain"
@@ -23,7 +24,6 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/storage"
 )
 
-// test change
 // может быть перезаписана при сборке
 // go build -ldflags "-X main.buildVersion=v1.4.2"
 var buildVersion = "v1.0.0-dev"
@@ -34,16 +34,24 @@ var buildVersion = "v1.0.0-dev"
 // @host					localhost:8080
 // @BasePath			/api/v1
 func main() {
+	_ = godotenv.Load()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
+	if err := run(); err != nil {
+		slog.Error("application failed to run", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	configPath := flag.String("config", "configs/sites.yaml", "path to YAML configuration file")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		slog.Error("Failed to load config", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	slog.Info(
@@ -69,8 +77,7 @@ func main() {
 
 	dbPool, err := storage.NewPostgresPool(dbCtx, cfg.DatabaseURL)
 	if err != nil {
-		slog.Error("failed to create postgres pool", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to create postgres pool: %w", err)
 	}
 	defer dbPool.Close()
 
@@ -95,20 +102,27 @@ func main() {
 
 	go scheduler.Start()
 
+	serverErr := make(chan error, 1)
+
 	go func() {
 		slog.Info("Starting HTTP server", slog.Int("port", cfg.Port))
 
 		err := apiServer.Start()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("HTTP Server start failed", slog.String("error", err.Error()))
-			os.Exit(1)
+			serverErr <- err
 		}
 	}()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, os.Interrupt)
 	defer cancel()
 
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		slog.Info("received shutdown signal...")
+	case err := <-serverErr:
+		slog.Error("HTTP Server crashed", slog.String("error", err.Error()))
+		return fmt.Errorf("http server failed: %w", err)
+	}
 
 	slog.Info("Shutting down...")
 
@@ -122,4 +136,5 @@ func main() {
 	}
 
 	slog.Info("Site monitor stopped gracefully.")
+	return nil
 }

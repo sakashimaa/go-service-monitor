@@ -70,7 +70,11 @@ func (s *Scheduler) Start() {
 				Error:         errStr,
 			}
 
-			s.repo.UpdateStatus(context.Background(), site.ID, status)
+			err = s.repo.UpdateStatus(context.Background(), site.ID, status)
+			if err != nil {
+				slog.Error("failed to update status", slog.String("error", err.Error()))
+				continue
+			}
 
 			if res.Error != nil {
 				slog.Error(
