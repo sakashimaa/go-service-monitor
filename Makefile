@@ -49,13 +49,13 @@ test: ## запуск тестов (пока тестов нет)
 swag: ## генерация документации Swagger
 	$(shell go env GOPATH)/bin/swag init -g $(MAIN_PATH)
 
-migrate-up: ## мигрировать базу (пока миграций нет)
+migrate-up: ## мигрировать базу
 	@echo "Running migrations up..."
-	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" up
+	$(shell go env GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" up
 
-migrate-down: ## откатить миграции базы (пока миграций нет)
+migrate-down: ## откатить миграции базы
 	@echo "Running migrations down..."
-	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down
+	$(shell go env GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down
 
 db-reset: ## удаление данных БД и перезапуск контейнера
 	docker compose down -v

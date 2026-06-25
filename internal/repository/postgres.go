@@ -32,7 +32,7 @@ func (r *PostgresRepository) GetAll(ctx context.Context) ([]domain.Site, error) 
 	}
 	defer rows.Close()
 
-	var sites []domain.Site
+	sites := make([]domain.Site, 0)
 	for rows.Next() {
 		var s domain.Site
 		if err := rows.Scan(&s.ID, &s.Name, &s.URL); err != nil {
