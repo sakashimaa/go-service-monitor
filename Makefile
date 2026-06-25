@@ -3,6 +3,8 @@ export
 
 APP_NAME = site-monitor
 MAIN_PATH = cmd/monitor/main.go
+MIGRATIONS_DIR = ./migrations
+VERSION ?= v1.0.0-local
 
 .PHONY: help build docker-build clean run up down restart deps fmt lint test swag migrate-up migrate-down db-reset logs ps shell
 
@@ -14,7 +16,7 @@ build: ## локальная сборка бинарника
 	go build -ldflags="-w -s" -o bin/$(APP_NAME) $(MAIN_PATH)
 
 docker-build: ## сборка докер
-	docker build -t $(APP_NAME) .
+	docker build --build-arg VERSION=$(VERSION) -t $(APP_NAME):$(VERSION) -t $(APP_NAME):latest .
 
 clean: ## очистка артефактов сборки
 	rm -rf bin/
@@ -49,9 +51,11 @@ swag: ## генерация документации Swagger
 
 migrate-up: ## мигрировать базу (пока миграций нет)
 	@echo "Running migrations up..."
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" up
 
 migrate-down: ## откатить миграции базы (пока миграций нет)
 	@echo "Running migrations down..."
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down
 
 db-reset: ## удаление данных БД и перезапуск контейнера
 	docker compose down -v

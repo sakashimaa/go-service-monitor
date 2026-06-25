@@ -5,3 +5,10 @@
 README.md
 Dockerfile
 .dockerignore
+bin/
+tmp/
+*.test
+.env
+.env.*
+!.env.example
+vendor/

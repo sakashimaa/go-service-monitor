@@ -13,7 +13,7 @@ import (
 )
 
 type Scheduler struct {
-	Config *config.Config
+	config *config.Config
 	done   chan struct{}
 	wg     sync.WaitGroup
 	repo   repository.SiteRepository
@@ -21,22 +21,22 @@ type Scheduler struct {
 
 func NewScheduler(config *config.Config, repo repository.SiteRepository) *Scheduler {
 	return &Scheduler{
-		Config: config,
+		config: config,
 		done:   make(chan struct{}),
 		wg:     sync.WaitGroup{},
 		repo:   repo,
 	}
 }
 
-func (s *Scheduler) Start() {
+func (s *Scheduler) Start(ctx context.Context) {
 	s.wg.Add(1)
 	defer s.wg.Done()
 
-	ticker := time.NewTicker(s.Config.CheckInterval)
+	ticker := time.NewTicker(s.config.CheckInterval)
 	defer ticker.Stop()
 
-	checkAll := func() {
-		sites, err := s.repo.GetAll(context.Background())
+	checkAll := func(c context.Context) {
+		sites, err := s.repo.GetAll(c)
 		if err != nil {
 			slog.Error("failed to retrieve sites from repo", slog.String("error", err.Error()))
 			return
@@ -44,7 +44,13 @@ func (s *Scheduler) Start() {
 
 		// в будущем на больших объемах надо будет переписать на конкуретную обработку при помощи горутин
 		for _, site := range sites {
-			res := checker.CheckSite(site.URL, s.Config)
+			select {
+			case <-c.Done():
+				return
+			default:
+			}
+
+			res := checker.CheckSite(site.URL, s.config)
 
 			now := time.Now()
 			code := res.ResponseCode
@@ -70,7 +76,7 @@ func (s *Scheduler) Start() {
 				Error:         errStr,
 			}
 
-			err = s.repo.UpdateStatus(context.Background(), site.ID, status)
+			err = s.repo.UpdateStatus(c, site.ID, status)
 			if err != nil {
 				slog.Error("failed to update status", slog.String("error", err.Error()))
 				continue
@@ -102,21 +108,17 @@ func (s *Scheduler) Start() {
 	}
 
 	// Первая проверка сразу как по условию
-	checkAll()
+	checkAll(ctx)
 
 	// приоритизированный селект, для того чтобы избежать рандомного выбора (из-за чего приложение может не остановится)
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-s.done:
 			return
-		default:
-		}
-
-		select {
 		case <-ticker.C:
-			checkAll()
-		case <-s.done:
-			return
+			checkAll(ctx)
 		}
 	}
 }

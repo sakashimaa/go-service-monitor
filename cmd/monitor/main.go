@@ -19,7 +19,7 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/handler"
 	"github.com/sakashimaa/site-monitor/internal/repository"
-	scheduler2 "github.com/sakashimaa/site-monitor/internal/scheduler"
+	"github.com/sakashimaa/site-monitor/internal/scheduler"
 	"github.com/sakashimaa/site-monitor/internal/service"
 	"github.com/sakashimaa/site-monitor/internal/storage"
 )
@@ -62,16 +62,6 @@ func run() error {
 		slog.String("http_timeout", cfg.Timeout.String()),
 	)
 
-	data := make(map[string]domain.Site, len(cfg.Sites))
-	for _, site := range cfg.Sites {
-		id := uuid.New().String()
-		data[id] = domain.Site{
-			ID:   id,
-			Name: site.Name,
-			URL:  site.URL,
-		}
-	}
-
 	dbCtx, cancelDB := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelDB()
 
@@ -83,13 +73,26 @@ func run() error {
 
 	slog.Info("successfully connected to PostgreSQL")
 
-	repo := repository.NewSiteRepository(data)
+	repo := repository.NewPostgresRepository(dbPool)
 	srv := service.NewSiteService(repo, dbPool)
 	hndl := handler.NewSiteHandler(srv, buildVersion)
 
+	for _, site := range cfg.Sites {
+		id := uuid.New().String()
+		err = repo.Create(context.Background(), &domain.Site{
+			ID:   id,
+			Name: site.Name,
+			URL:  site.URL,
+		})
+		if err != nil && !errors.Is(err, repository.ErrURLAlreadyExists) {
+			slog.Error("failed to insert site from config in DB", slog.String("error", err.Error()))
+			continue
+		}
+	}
+
 	apiServer := api.NewServer(cfg, hndl)
 
-	scheduler := scheduler2.NewScheduler(cfg, repo)
+	sched := scheduler.NewScheduler(cfg, repo)
 
 	slog.Info(
 		"Site Monitor started",
@@ -99,8 +102,6 @@ func run() error {
 
 	// оставил обычный println чтоб человеку за консолью было понятно
 	fmt.Println("Press Ctrl+C to stop")
-
-	go scheduler.Start()
 
 	serverErr := make(chan error, 1)
 
@@ -116,6 +117,8 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, os.Interrupt)
 	defer cancel()
 
+	go sched.Start(ctx)
+
 	select {
 	case <-ctx.Done():
 		slog.Info("received shutdown signal...")
@@ -126,7 +129,7 @@ func run() error {
 
 	slog.Info("Shutting down...")
 
-	scheduler.Stop()
+	sched.Stop()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
