@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/repository"
 )
@@ -14,14 +16,26 @@ type SiteService interface {
 	DeleteSite(ctx context.Context, id string) error
 	GetStatus(ctx context.Context, id string) (domain.SiteStatus, error)
 	UpdateStatus(ctx context.Context, id string, data domain.SiteStatus) error
+	PingDB(ctx context.Context) error
 }
 
 type SiteServ struct {
-	repo repository.SiteRepository
+	repo   repository.SiteRepository
+	dbPool *pgxpool.Pool
 }
 
-func NewSiteService(repo repository.SiteRepository) SiteService {
-	return &SiteServ{repo: repo}
+func NewSiteService(repo repository.SiteRepository, dbPool *pgxpool.Pool) SiteService {
+	return &SiteServ{
+		repo:   repo,
+		dbPool: dbPool,
+	}
+}
+
+func (s *SiteServ) PingDB(ctx context.Context) error {
+	if s.dbPool == nil {
+		return fmt.Errorf("database connection is not initialized")
+	}
+	return s.dbPool.Ping(ctx)
 }
 
 func (s *SiteServ) GetStatus(ctx context.Context, id string) (domain.SiteStatus, error) {
