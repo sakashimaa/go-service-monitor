@@ -65,7 +65,7 @@ func run() error {
 	dbCtx, cancelDB := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelDB()
 
-	dbPool, err := storage.NewPostgresPool(dbCtx, cfg.DatabaseURL)
+	dbPool, err := storage.NewPostgresPool(dbCtx, cfg.DatabaseURL, cfg.Pool)
 	if err != nil {
 		return fmt.Errorf("failed to create postgres pool: %w", err)
 	}
@@ -74,7 +74,8 @@ func run() error {
 	slog.Info("successfully connected to PostgreSQL")
 
 	repo := repository.NewPostgresRepository(dbPool)
-	srv := service.NewSiteService(repo, dbPool)
+	historyRepo := repository.NewCheckHistoryRepo(dbPool)
+	srv := service.NewSiteService(repo, historyRepo, dbPool)
 	hndl := handler.NewSiteHandler(srv, buildVersion)
 
 	for _, site := range cfg.Sites {
@@ -92,7 +93,7 @@ func run() error {
 
 	apiServer := api.NewServer(cfg, hndl)
 
-	sched := scheduler.NewScheduler(cfg, repo)
+	sched := scheduler.NewScheduler(cfg, repo, historyRepo)
 
 	slog.Info(
 		"Site Monitor started",

@@ -17,7 +17,15 @@ type Config struct {
 	Timeout       time.Duration `yaml:"timeout" envconfig:"HTTP_TIMEOUT"`
 	LogLevel      string        `yaml:"log_level" envconfig:"LOG_LEVEL" default:"info"`
 	DatabaseURL   string        `envconfig:"DATABASE_URL"`
+	Pool          PoolConfig    `yaml:"pool"`
 	Server        `yaml:"server"`
+}
+
+type PoolConfig struct {
+	MaxConns        int32         `yaml:"max_conns"`
+	MinConns        int32         `yaml:"min_conns"`
+	MaxConnLifetime time.Duration `yaml:"max_conn_lifetime"`
+	MaxConnIdleTime time.Duration `yaml:"max_conn_idle_time"`
 }
 
 type Server struct {

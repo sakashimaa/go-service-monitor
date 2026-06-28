@@ -19,7 +19,6 @@ type SiteRepository interface {
 	Create(ctx context.Context, req *domain.Site) error
 	Delete(ctx context.Context, id string) error
 	GetStatus(ctx context.Context, id string) (domain.SiteStatus, error)
-	UpdateStatus(ctx context.Context, id string, status domain.SiteStatus) error
 }
 
 type InMemoryRepo struct {
@@ -53,18 +52,6 @@ func (r *InMemoryRepo) GetStatus(ctx context.Context, id string) (domain.SiteSta
 	}
 
 	return r.statuses[id], nil
-}
-
-func (r *InMemoryRepo) UpdateStatus(ctx context.Context, id string, status domain.SiteStatus) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, ok := r.data[id]; !ok {
-		return ErrSiteNotFound
-	}
-
-	r.statuses[id] = status
-	return nil
 }
 
 func (r *InMemoryRepo) Delete(ctx context.Context, id string) error {

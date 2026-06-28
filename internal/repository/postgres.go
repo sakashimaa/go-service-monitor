@@ -50,10 +50,10 @@ func (r *PostgresRepository) GetAll(ctx context.Context) ([]domain.Site, error) 
 
 func (r *PostgresRepository) Create(ctx context.Context, req *domain.Site) error {
 	query := `
-		INSERT INTO sites (id, name, url, status)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO sites (id, name, url)
+		VALUES ($1, $2, $3)
 	`
-	_, err := r.pool.Exec(ctx, query, req.ID, req.Name, req.URL, domain.StatusPending)
+	_, err := r.pool.Exec(ctx, query, req.ID, req.Name, req.URL)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		// код уникальности

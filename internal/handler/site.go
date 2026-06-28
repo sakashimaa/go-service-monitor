@@ -92,8 +92,8 @@ func (h *HTTPHandler) SiteStatus(w http.ResponseWriter, r *http.Request) {
 
 	status, err := h.service.GetStatus(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrSiteNotFound) {
-			http.Error(w, "site not found", http.StatusNotFound)
+		if errors.Is(err, domain.ErrSiteHistoryNotFound) {
+			http.Error(w, "history not found", http.StatusNotFound)
 			return
 		}
 		slog.Error("failed to get site status", slog.String("error", err.Error()))
