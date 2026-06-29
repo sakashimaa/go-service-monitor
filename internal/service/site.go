@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/repository"
+	"github.com/sakashimaa/site-monitor/internal/storage"
 )
 
 type SiteService interface {
@@ -52,17 +54,27 @@ func (s *SiteServ) GetAll(ctx context.Context) ([]domain.Site, error) {
 }
 
 func (s *SiteServ) CreateSite(ctx context.Context, req *domain.CreateSiteRequest) (*domain.Site, error) {
-	id := uuid.New().String()
 	site := &domain.Site{
-		ID:   id,
+		ID:   uuid.NewString(),
 		Name: req.Name,
 		URL:  req.URL,
 	}
 
-	err := s.repo.Create(ctx, site)
+	err := storage.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
+		if err := s.repo.CreateTx(ctx, tx, site); err != nil {
+			return err
+		}
+
+		h := &domain.CheckHistory{
+			ID:     uuid.NewString(),
+			SiteID: site.ID,
+			Status: domain.StatusPending,
+		}
+		return s.historyRepo.CreateTx(ctx, tx, h)
+	})
+
 	if err != nil {
 		return nil, err
 	}
-
 	return site, nil
 }

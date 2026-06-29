@@ -7,12 +7,18 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakashimaa/site-monitor/internal/domain"
 )
 
+type querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 type CheckHistoryRepository interface {
 	Create(ctx context.Context, h *domain.CheckHistory) error
+	CreateTx(ctx context.Context, tx pgx.Tx, h *domain.CheckHistory) error
 	GetLatest(ctx context.Context, siteID string) (*domain.CheckHistory, error)
 	GetHistory(ctx context.Context, siteID string, limit int, cursor *time.Time) ([]domain.CheckHistory, error)
 }
@@ -25,26 +31,34 @@ func NewCheckHistoryRepo(db *pgxpool.Pool) CheckHistoryRepository {
 	return &CheckHistoryPGRepo{db: db}
 }
 
-func (c *CheckHistoryPGRepo) Create(ctx context.Context, h *domain.CheckHistory) error {
+func (c *CheckHistoryPGRepo) create(ctx context.Context, q querier, req *domain.CheckHistory) error {
 	query := `
 		INSERT INTO site_checks (id, site_id, status, response_code, response_time, error)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	if _, err := c.db.Exec(
+	if _, err := q.Exec(
 		ctx,
 		query,
-		h.ID,
-		h.SiteID,
-		h.Status,
-		h.ResponseCode,
-		h.ResponseTime,
-		h.Error,
+		req.ID,
+		req.SiteID,
+		req.Status,
+		req.ResponseCode,
+		req.ResponseTime,
+		req.Error,
 	); err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
 	}
 
 	return nil
+}
+
+func (c *CheckHistoryPGRepo) CreateTx(ctx context.Context, tx pgx.Tx, h *domain.CheckHistory) error {
+	return c.create(ctx, tx, h)
+}
+
+func (c *CheckHistoryPGRepo) Create(ctx context.Context, h *domain.CheckHistory) error {
+	return c.create(ctx, c.db, h)
 }
 
 func (c *CheckHistoryPGRepo) GetLatest(ctx context.Context, siteID string) (*domain.CheckHistory, error) {
