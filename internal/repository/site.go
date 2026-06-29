@@ -18,7 +18,6 @@ type SiteRepository interface {
 	GetAll(ctx context.Context) ([]domain.Site, error)
 	Create(ctx context.Context, req *domain.Site) error
 	Delete(ctx context.Context, id string) error
-	GetStatus(ctx context.Context, id string) (domain.SiteStatus, error)
 }
 
 type InMemoryRepo struct {
@@ -41,17 +40,6 @@ func NewSiteRepository(data map[string]domain.Site) SiteRepository {
 		statuses: statuses,
 		mu:       sync.RWMutex{},
 	}
-}
-
-func (r *InMemoryRepo) GetStatus(ctx context.Context, id string) (domain.SiteStatus, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if _, ok := r.data[id]; !ok {
-		return domain.SiteStatus{}, ErrSiteNotFound
-	}
-
-	return r.statuses[id], nil
 }
 
 func (r *InMemoryRepo) Delete(ctx context.Context, id string) error {

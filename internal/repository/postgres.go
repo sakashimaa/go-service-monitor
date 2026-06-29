@@ -96,20 +96,3 @@ func (r *PostgresRepository) GetStatus(ctx context.Context, id string) (domain.S
 
 	return s, nil
 }
-
-func (r *PostgresRepository) UpdateStatus(ctx context.Context, id string, status domain.SiteStatus) error {
-	cmdTag, err := r.pool.Exec(ctx, `
-		UPDATE sites 
-		SET status = $1, response_code = $2, last_check_time = $3, response_time = $4, error = $5 
-		WHERE id = $6`,
-		status.Status, status.ResponseCode, status.LastCheckTime, status.ResponseTime, status.Error, id,
-	)
-	if err != nil {
-		return err
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		return ErrSiteNotFound
-	}
-	return nil
-}
