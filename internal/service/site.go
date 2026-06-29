@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,7 @@ type SiteService interface {
 	DeleteSite(ctx context.Context, id string) error
 	GetStatus(ctx context.Context, id string) (*domain.CheckHistory, error)
 	PingDB(ctx context.Context) error
+	GetHistory(ctx context.Context, id string, limit int, cursor *time.Time) ([]domain.CheckHistory, error)
 }
 
 type SiteServ struct {
@@ -32,6 +34,10 @@ func NewSiteService(repo repository.SiteRepository, historyRepo repository.Check
 		historyRepo: historyRepo,
 		dbPool:      dbPool,
 	}
+}
+
+func (s *SiteServ) GetHistory(ctx context.Context, id string, limit int, cursor *time.Time) ([]domain.CheckHistory, error) {
+	return s.historyRepo.GetHistory(ctx, id, limit, cursor)
 }
 
 func (s *SiteServ) PingDB(ctx context.Context) error {

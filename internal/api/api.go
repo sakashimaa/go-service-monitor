@@ -39,6 +39,7 @@ func NewServer(cfg *config.Config, siteHandler handler.SiteHandler) *Server {
 	v1Mux.HandleFunc("POST /sites", siteHandler.CreateSite)
 	v1Mux.HandleFunc("DELETE /sites/{id}", siteHandler.DeleteSite)
 	v1Mux.HandleFunc("GET /health", siteHandler.HealthCheck)
+	v1Mux.HandleFunc("GET /sites/{id}/history", siteHandler.SiteHistory)
 
 	v1Handler := chainMiddleware(
 		v1Mux,

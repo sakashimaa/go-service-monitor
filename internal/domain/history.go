@@ -18,3 +18,9 @@ type CheckHistory struct {
 	Error        *string   `json:"error,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+type SiteHistoryResponse struct {
+	Data       []CheckHistory `json:"data"`
+	NextCursor *time.Time     `json:"next_cursor,omitempty"`
+	HasMore    bool           `json:"has_more"`
+}
