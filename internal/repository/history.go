@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,7 +14,7 @@ import (
 type CheckHistoryRepository interface {
 	Create(ctx context.Context, h *domain.CheckHistory) error
 	GetLatest(ctx context.Context, siteID string) (*domain.CheckHistory, error)
-	GetHistory(ctx context.Context, siteID string) ([]domain.CheckHistory, error)
+	GetHistory(ctx context.Context, siteID string, limit int, cursor *time.Time) ([]domain.CheckHistory, error)
 }
 
 type CheckHistoryPGRepo struct {
@@ -79,18 +80,34 @@ func (c *CheckHistoryPGRepo) GetLatest(ctx context.Context, siteID string) (*dom
 	return &res, nil
 }
 
-func (c *CheckHistoryPGRepo) GetHistory(ctx context.Context, siteID string) ([]domain.CheckHistory, error) {
-	query := `
-		SELECT id, site_id, status, response_code, response_time, error, created_at
-		FROM site_checks
-		WHERE site_id = $1
-		ORDER BY created_at DESC
-	`
+func (c *CheckHistoryPGRepo) GetHistory(ctx context.Context, siteID string, limit int, cursor *time.Time) ([]domain.CheckHistory, error) {
+	var query string
+	var args []any
+
+	if cursor == nil {
+		query = `
+			SELECT id, site_id, status, response_code, response_time, error, created_at
+			FROM site_checks
+			WHERE site_id = $1
+			ORDER BY created_at DESC
+			LIMIT $2
+		`
+		args = []any{siteID, limit}
+	} else {
+		query = `
+			SELECT id, site_id, status, response_code, response_time, error, created_at
+			FROM site_checks
+			WHERE site_id = $1 AND created_at < $2
+			ORDER BY created_at DESC
+			LIMIT $3
+		`
+		args = []any{siteID, cursor, limit}
+	}
 
 	rows, err := c.db.Query(
 		ctx,
 		query,
-		siteID,
+		args...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query site check history: %w", err)
