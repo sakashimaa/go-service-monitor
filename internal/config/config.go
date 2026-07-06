@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -56,13 +57,8 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to process env variables: %w", err)
 	}
 
-	// ручная проверка (для текущих масштабов нормально)
-	if cfg.Port == 0 {
-		return nil, errors.New("port is required but not provided in config")
-	}
-
-	if cfg.DatabaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
+	if err := validate(&cfg); err != nil {
+		return nil, fmt.Errorf("failed to validate config: %w", err)
 	}
 
 	if cfg.Pool.MaxConns <= 0 {
@@ -78,4 +74,47 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func validate(cfg *Config) error {
+	if cfg.Port == 0 {
+		return errors.New("port is required but not provided in config")
+	}
+
+	if cfg.DatabaseURL == "" {
+		return errors.New("DATABASE_URL is required but not provided in config")
+	}
+
+	if cfg.CheckInterval <= 0 {
+		return errors.New("check_interval must be a positive duration")
+	}
+
+	if cfg.Timeout <= 0 {
+		return errors.New("timeout must be a positive duration")
+	}
+
+	for _, site := range cfg.Sites {
+		if err := validateSiteURL(site); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateSiteURL(site Site) error {
+	u, err := url.Parse(site.URL)
+	if err != nil {
+		return fmt.Errorf("site %s: invalid url %q: %w", site.Name, site.URL, err)
+	}
+
+	if u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("site %s: %q must be an absolute http/https url", site.Name, site.URL)
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("site %s: unsupported url scheme %q (expected http or https)", site.Name, u.Scheme)
+	}
+
+	return nil
 }
