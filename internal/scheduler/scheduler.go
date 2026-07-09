@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sakashimaa/site-monitor/internal/checker"
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/domain"
@@ -13,18 +14,24 @@ import (
 )
 
 type Scheduler struct {
-	config *config.Config
-	done   chan struct{}
-	wg     sync.WaitGroup
-	repo   repository.SiteRepository
+	config      *config.Config
+	done        chan struct{}
+	wg          sync.WaitGroup
+	repo        repository.SiteRepository
+	historyRepo repository.CheckHistoryRepository
 }
 
-func NewScheduler(config *config.Config, repo repository.SiteRepository) *Scheduler {
+func NewScheduler(
+	config *config.Config,
+	repo repository.SiteRepository,
+	historyRepo repository.CheckHistoryRepository,
+) *Scheduler {
 	return &Scheduler{
-		config: config,
-		done:   make(chan struct{}),
-		wg:     sync.WaitGroup{},
-		repo:   repo,
+		config:      config,
+		done:        make(chan struct{}),
+		wg:          sync.WaitGroup{},
+		repo:        repo,
+		historyRepo: historyRepo,
 	}
 }
 
@@ -52,10 +59,6 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 			res := checker.CheckSite(site.URL, s.config)
 
-			now := time.Now()
-			code := res.ResponseCode
-			durationMs := res.ResponseTime.Milliseconds()
-
 			statusVal := domain.StatusOK
 			var errStr *string
 
@@ -67,19 +70,16 @@ func (s *Scheduler) Start(ctx context.Context) {
 				}
 			}
 
-			status := domain.SiteStatus{
-				URL:           site.URL,
-				Status:        statusVal,
-				ResponseCode:  &code,
-				LastCheckTime: &now,
-				ResponseTime:  &durationMs,
-				Error:         errStr,
+			h := &domain.CheckHistory{
+				ID:           uuid.NewString(),
+				SiteID:       site.ID,
+				Status:       statusVal,
+				ResponseCode: res.ResponseCode,
+				ResponseTime: res.ResponseTime.Milliseconds(),
+				Error:        errStr,
 			}
-
-			err = s.repo.UpdateStatus(c, site.ID, status)
-			if err != nil {
-				slog.Error("failed to update status", slog.String("error", err.Error()))
-				continue
+			if err := s.historyRepo.Create(c, h); err != nil {
+				slog.Error("failed to create history record", slog.String("error", err.Error()))
 			}
 
 			if res.Error != nil {

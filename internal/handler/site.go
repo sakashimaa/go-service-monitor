@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type SiteHandler interface {
 	DeleteSite(w http.ResponseWriter, r *http.Request)
 	SiteStatus(w http.ResponseWriter, r *http.Request)
 	HealthCheck(w http.ResponseWriter, r *http.Request)
+	SiteHistory(w http.ResponseWriter, r *http.Request)
 }
 
 type HTTPHandler struct {
@@ -34,6 +36,74 @@ func NewSiteHandler(service service.SiteService, version string) SiteHandler {
 		service:   service,
 		startTime: time.Now(),
 		version:   version,
+	}
+}
+
+// SiteHistory godoc
+// @Summary		Получить историю проверок сайта по id
+// @Description Возвращает пагинированную страницу истории проверок конкретного сайта (курсорная пагинация)
+// @Tags		system
+// @Produce		json
+// @Success		200 {object} domain.SiteHistoryResponse
+// @Router		/sites/{id}/history [get]
+func (h *HTTPHandler) SiteHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := uuid.Parse(id); err != nil {
+		http.Error(w, "id is invalid format: must be uuid", http.StatusBadRequest)
+		return
+	}
+
+	limitNum := 20
+	if l := r.URL.Query().Get("limit"); l != "" {
+		n, err := strconv.Atoi(l)
+		if err != nil || n <= 0 {
+			http.Error(w, "limit is invalid format: must be a positive integer", http.StatusBadRequest)
+			return
+		}
+		limitNum = min(n, 20)
+	}
+
+	var cursor *time.Time
+	if c := r.URL.Query().Get("cursor"); c != "" {
+		t, err := time.Parse(time.RFC3339, c)
+		if err != nil {
+			http.Error(w, "cursor is invalid format: must be RFC3339 date", http.StatusBadRequest)
+			return
+		}
+		cursor = &t
+	}
+
+	history, err := h.service.GetHistory(r.Context(), id, limitNum+1, cursor)
+	if err != nil {
+		if errors.Is(err, domain.ErrSiteNotFound) {
+			http.Error(w, "site not found", http.StatusNotFound)
+			return
+		}
+
+		slog.Error("failed to get site history", slog.String("error", err.Error()), slog.String("site_id", id))
+		http.Error(w, "failed to query history for this site", http.StatusInternalServerError)
+		return
+	}
+
+	hasMore := len(history) > limitNum
+	if hasMore {
+		history = history[:limitNum]
+	}
+
+	var nextCursor *time.Time
+	if hasMore {
+		t := history[len(history)-1].CreatedAt
+		nextCursor = &t
+	}
+
+	resp := &domain.SiteHistoryResponse{
+		Data:       history,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}
+
+	if err := lib.WriteJSON(w, http.StatusOK, resp); err != nil {
+		slog.Error("encode resp failed", slog.String("error", err.Error()))
 	}
 }
 
@@ -92,8 +162,8 @@ func (h *HTTPHandler) SiteStatus(w http.ResponseWriter, r *http.Request) {
 
 	status, err := h.service.GetStatus(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrSiteNotFound) {
-			http.Error(w, "site not found", http.StatusNotFound)
+		if errors.Is(err, domain.ErrSiteHistoryNotFound) {
+			http.Error(w, "history not found", http.StatusNotFound)
 			return
 		}
 		slog.Error("failed to get site status", slog.String("error", err.Error()))
@@ -125,7 +195,7 @@ func (h *HTTPHandler) DeleteSite(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.DeleteSite(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrSiteNotFound) {
+		if errors.Is(err, domain.ErrSiteNotFound) {
 			http.Error(w, "site not found", http.StatusNotFound)
 			return
 		}

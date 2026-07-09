@@ -27,3 +27,8 @@ server:
   write_timeout: 10s
   idle_timeout: 15s
   shutdown_timeout: 5s
+pool:
+  max_conns: 10
+  min_conns: 2
+  max_conn_lifetime: 1h
+  max_conn_idle_time: 30m
