@@ -21,6 +21,8 @@ type CheckHistoryRepository interface {
 	CreateTx(ctx context.Context, tx pgx.Tx, h *domain.CheckHistory) error
 	GetLatest(ctx context.Context, siteID string) (*domain.CheckHistory, error)
 	GetHistory(ctx context.Context, siteID string, limit int, cursor *time.Time) ([]domain.CheckHistory, error)
+	DeleteBySiteId(ctx context.Context, siteID string) error
+	DeleteBySiteIdTx(ctx context.Context, tx pgx.Tx, siteID string) error
 }
 
 type CheckHistoryPGRepo struct {
@@ -29,6 +31,14 @@ type CheckHistoryPGRepo struct {
 
 func NewCheckHistoryRepo(db *pgxpool.Pool) CheckHistoryRepository {
 	return &CheckHistoryPGRepo{db: db}
+}
+
+func (c *CheckHistoryPGRepo) deleteById(ctx context.Context, q querier, siteID string) error {
+	if _, err := q.Exec(ctx, `DELETE FROM site_checks WHERE id = $1`, siteID); err != nil {
+		return fmt.Errorf("failed to delete site history: %w", err)
+	}
+
+	return nil
 }
 
 func (c *CheckHistoryPGRepo) create(ctx context.Context, q querier, req *domain.CheckHistory) error {
@@ -51,6 +61,14 @@ func (c *CheckHistoryPGRepo) create(ctx context.Context, q querier, req *domain.
 	}
 
 	return nil
+}
+
+func (c *CheckHistoryPGRepo) DeleteBySiteId(ctx context.Context, siteID string) error {
+	return c.deleteById(ctx, c.db, siteID)
+}
+
+func (c *CheckHistoryPGRepo) DeleteBySiteIdTx(ctx context.Context, tx pgx.Tx, siteID string) error {
+	return c.deleteById(ctx, tx, siteID)
 }
 
 func (c *CheckHistoryPGRepo) CreateTx(ctx context.Context, tx pgx.Tx, h *domain.CheckHistory) error {
@@ -129,7 +147,7 @@ func (c *CheckHistoryPGRepo) GetHistory(ctx context.Context, siteID string, limi
 
 	defer rows.Close()
 
-	var res []domain.CheckHistory
+	res := make([]domain.CheckHistory, 0)
 	for rows.Next() {
 		var h domain.CheckHistory
 		if err := rows.Scan(

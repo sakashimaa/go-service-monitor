@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+var (
+	ErrSiteNotFound = errors.New("site not found")
+)
+
 type Site struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

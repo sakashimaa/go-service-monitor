@@ -6,7 +6,7 @@ MAIN_PATH = cmd/monitor/main.go
 MIGRATIONS_DIR = ./migrations
 VERSION ?= v1.0.0-local
 
-.PHONY: help build docker-build clean run up down restart deps fmt lint test swag migrate-up migrate-down db-reset logs ps shell
+.PHONY: help build docker-build clean run up down restart deps fmt lint test swag migrate-up migrate-down db-reset logs ps shell migrate-create
 
 # генерация документации по регуляркам. Для документации команды обязательно должно быть вот так <название_команды>: ## документация
 help: ## список всех доступных команд
@@ -48,6 +48,10 @@ test: ## запуск тестов (пока тестов нет)
 
 swag: ## генерация документации Swagger
 	$(shell go env GOPATH)/bin/swag init -g $(MAIN_PATH)
+
+migrate-create: ## создать новый файл миграции: make migrate-create name=add_users_table
+	@echo "Creating migration $(name)..."
+	$(shell go env GOPATH)/bin/goose -dir $(MIGRATIONS_DIR) create $(name) sql
 
 migrate-up: ## мигрировать базу
 	@echo "Running migrations up..."

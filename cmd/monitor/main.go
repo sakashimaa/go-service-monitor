@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/sakashimaa/site-monitor/internal/api"
 	"github.com/sakashimaa/site-monitor/internal/config"
@@ -79,12 +78,19 @@ func run() error {
 	hndl := handler.NewSiteHandler(srv, buildVersion)
 
 	for _, site := range cfg.Sites {
-		id := uuid.New().String()
-		err = repo.Create(context.Background(), &domain.Site{
-			ID:   id,
+		req := &domain.CreateSiteRequest{
 			Name: site.Name,
 			URL:  site.URL,
-		})
+		}
+		if err := req.Validate(); err != nil {
+			slog.Warn("invalid site from config, skipping",
+				slog.String("name", req.Name),
+				slog.String("url", req.URL),
+				slog.String("error", err.Error()),
+			)
+			continue
+		}
+		_, err = srv.CreateSite(context.Background(), req)
 		if err != nil && !errors.Is(err, repository.ErrURLAlreadyExists) {
 			slog.Error("failed to insert site from config in DB", slog.String("error", err.Error()))
 			continue

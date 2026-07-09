@@ -55,9 +55,12 @@ func (h *HTTPHandler) SiteHistory(w http.ResponseWriter, r *http.Request) {
 
 	limitNum := 20
 	if l := r.URL.Query().Get("limit"); l != "" {
-		if n, err := strconv.Atoi(l); err == nil && n > 0 {
-			limitNum = min(n, 20)
+		n, err := strconv.Atoi(l)
+		if err != nil || n <= 0 {
+			http.Error(w, "limit is invalid format: must be a positive integer", http.StatusBadRequest)
+			return
 		}
+		limitNum = min(n, 20)
 	}
 
 	var cursor *time.Time
@@ -70,17 +73,10 @@ func (h *HTTPHandler) SiteHistory(w http.ResponseWriter, r *http.Request) {
 		cursor = &t
 	}
 
-	history, err := h.service.GetHistory(r.Context(), id, limitNum, cursor)
+	history, err := h.service.GetHistory(r.Context(), id, limitNum+1, cursor)
 	if err != nil {
-		if errors.Is(err, domain.ErrSiteHistoryNotFound) {
-			resp := &domain.SiteHistoryResponse{
-				Data:    []domain.CheckHistory{},
-				HasMore: false,
-			}
-
-			if err := lib.WriteJSON(w, http.StatusOK, resp); err != nil {
-				slog.Error("encode resp failed", slog.String("error", err.Error()))
-			}
+		if errors.Is(err, domain.ErrSiteNotFound) {
+			http.Error(w, "site not found", http.StatusNotFound)
 			return
 		}
 
@@ -89,8 +85,12 @@ func (h *HTTPHandler) SiteHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hasMore := len(history) > limitNum
+	if hasMore {
+		history = history[:limitNum]
+	}
+
 	var nextCursor *time.Time
-	hasMore := len(history) == limitNum
 	if hasMore {
 		t := history[len(history)-1].CreatedAt
 		nextCursor = &t
@@ -195,7 +195,7 @@ func (h *HTTPHandler) DeleteSite(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.DeleteSite(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrSiteNotFound) {
+		if errors.Is(err, domain.ErrSiteNotFound) {
 			http.Error(w, "site not found", http.StatusNotFound)
 			return
 		}

@@ -78,7 +78,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 				ResponseTime: res.ResponseTime.Milliseconds(),
 				Error:        errStr,
 			}
-			if err := s.historyRepo.Create(ctx, h); err != nil {
+			if err := s.historyRepo.Create(c, h); err != nil {
 				slog.Error("failed to create history record", slog.String("error", err.Error()))
 			}
 

@@ -13,14 +13,16 @@ import (
 
 var (
 	ErrURLAlreadyExists = errors.New("URL already exists")
-	ErrSiteNotFound     = errors.New("site not found")
 )
 
 type SiteRepository interface {
+	GetById(ctx context.Context, id string) (*domain.Site, error)
 	GetAll(ctx context.Context) ([]domain.Site, error)
 	Create(ctx context.Context, req *domain.Site) error
 	CreateTx(ctx context.Context, tx pgx.Tx, req *domain.Site) error
+	Update(ctx context.Context, req *domain.Site) error
 	Delete(ctx context.Context, id string) error
+	DeleteTx(ctx context.Context, tx pgx.Tx, id string) error
 }
 
 type PostgresRepository struct {
@@ -29,6 +31,46 @@ type PostgresRepository struct {
 
 func NewPostgresRepository(pool *pgxpool.Pool) SiteRepository {
 	return &PostgresRepository{pool: pool}
+}
+
+func (r *PostgresRepository) Update(ctx context.Context, req *domain.Site) error {
+	cmdTag, err := r.pool.Exec(ctx, `
+		UPDATE sites
+		SET name = $1, url = $2
+		WHERE id = $3
+	`, req.Name, req.URL, req.ID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrURLAlreadyExists
+		}
+		return fmt.Errorf("failed to update site: %w", err)
+	}
+
+	if cmdTag.RowsAffected() == 0 {
+		return domain.ErrSiteNotFound
+	}
+
+	return nil
+}
+
+func (r *PostgresRepository) GetById(ctx context.Context, id string) (*domain.Site, error) {
+	var s domain.Site
+	err := r.pool.QueryRow(ctx,
+		`
+		SELECT id, name, url
+		FROM sites
+		WHERE id = $1
+	`, id).Scan(&s.ID, &s.Name, &s.URL)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrSiteNotFound
+		}
+
+		return nil, fmt.Errorf("failed to query site: %w", err)
+	}
+
+	return &s, nil
 }
 
 func (r *PostgresRepository) GetAll(ctx context.Context) ([]domain.Site, error) {
@@ -85,34 +127,22 @@ func (r *PostgresRepository) CreateTx(ctx context.Context, tx pgx.Tx, req *domai
 	return r.create(ctx, tx, req)
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
-	cmdTag, err := r.pool.Exec(ctx, "DELETE FROM sites WHERE id = $1", id)
+func (r *PostgresRepository) delete(ctx context.Context, q querier, id string) error {
+	cmdTag, err := q.Exec(ctx, "DELETE FROM sites WHERE id = $1", id)
 	if err != nil {
 		return err
 	}
 
 	if cmdTag.RowsAffected() == 0 {
-		return ErrSiteNotFound
+		return domain.ErrSiteNotFound
 	}
 	return nil
 }
 
-func (r *PostgresRepository) GetStatus(ctx context.Context, id string) (domain.SiteStatus, error) {
-	var s domain.SiteStatus
+func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
+	return r.delete(ctx, r.pool, id)
+}
 
-	err := r.pool.QueryRow(ctx, `
-		SELECT url, status, response_code, last_check_time, response_time, error 
-		FROM sites 
-		WHERE id = $1`,
-		id,
-	).Scan(&s.URL, &s.Status, &s.ResponseCode, &s.LastCheckTime, &s.ResponseTime, &s.Error)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.SiteStatus{}, ErrSiteNotFound
-		}
-		return domain.SiteStatus{}, err
-	}
-
-	return s, nil
+func (r *PostgresRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id string) error {
+	return r.delete(ctx, tx, id)
 }

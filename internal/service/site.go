@@ -37,6 +37,10 @@ func NewSiteService(repo repository.SiteRepository, historyRepo repository.Check
 }
 
 func (s *SiteServ) GetHistory(ctx context.Context, id string, limit int, cursor *time.Time) ([]domain.CheckHistory, error) {
+	if _, err := s.repo.GetById(ctx, id); err != nil {
+		return nil, err
+	}
+
 	return s.historyRepo.GetHistory(ctx, id, limit, cursor)
 }
 
@@ -52,7 +56,12 @@ func (s *SiteServ) GetStatus(ctx context.Context, id string) (*domain.CheckHisto
 }
 
 func (s *SiteServ) DeleteSite(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	return storage.WithTransaction(ctx, s.dbPool, func(tx pgx.Tx) error {
+		if err := s.historyRepo.DeleteBySiteIdTx(ctx, tx, id); err != nil {
+			return err
+		}
+		return s.repo.DeleteTx(ctx, tx, id)
+	})
 }
 
 func (s *SiteServ) GetAll(ctx context.Context) ([]domain.Site, error) {

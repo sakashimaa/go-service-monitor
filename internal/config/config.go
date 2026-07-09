@@ -22,10 +22,10 @@ type Config struct {
 }
 
 type PoolConfig struct {
-	MaxConns        int32         `yaml:"max_conns"`
-	MinConns        int32         `yaml:"min_conns"`
-	MaxConnLifetime time.Duration `yaml:"max_conn_lifetime"`
-	MaxConnIdleTime time.Duration `yaml:"max_conn_idle_time"`
+	MaxConns        int32         `yaml:"max_conns" envconfig:"POOL_MAX_CONNS"`
+	MinConns        int32         `yaml:"min_conns" envconfig:"POOL_MIN_CONNS"`
+	MaxConnLifetime time.Duration `yaml:"max_conn_lifetime" envconfig:"POOL_MAX_CONN_LIFETIME"`
+	MaxConnIdleTime time.Duration `yaml:"max_conn_idle_time" envconfig:"POOL_MAX_CONN_IDLE_TIME"`
 }
 
 type Server struct {
@@ -63,6 +63,18 @@ func Load(path string) (*Config, error) {
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+
+	if cfg.Pool.MaxConns <= 0 {
+		return nil, errors.New("pool.max_conns must be > 0")
+	}
+
+	if cfg.Pool.MinConns < 0 {
+		return nil, errors.New("pool.min_conns must be >= 0")
+	}
+
+	if cfg.Pool.MinConns > cfg.Pool.MaxConns {
+		return nil, errors.New("pool.min_conns must not exceed pool.max_conns")
 	}
 
 	return &cfg, nil
