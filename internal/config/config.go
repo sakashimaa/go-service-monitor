@@ -57,16 +57,10 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to process env variables: %w", err)
 	}
 
+	applyPoolDefaults(&cfg.Pool)
+
 	if err := validate(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to validate config: %w", err)
-	}
-
-	if cfg.Pool.MaxConns <= 0 {
-		return nil, errors.New("pool.max_conns must be > 0")
-	}
-
-	if cfg.Pool.MinConns < 0 {
-		return nil, errors.New("pool.min_conns must be >= 0")
 	}
 
 	if cfg.Pool.MinConns > cfg.Pool.MaxConns {
@@ -117,4 +111,13 @@ func validateSiteURL(site Site) error {
 	}
 
 	return nil
+}
+
+func applyPoolDefaults(p *PoolConfig) {
+	if p.MaxConns <= 0 {
+		p.MaxConns = 10
+	}
+	if p.MinConns < 0 {
+		p.MinConns = 0
+	}
 }
