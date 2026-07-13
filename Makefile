@@ -6,7 +6,7 @@ MAIN_PATH = cmd/monitor/main.go
 MIGRATIONS_DIR = ./migrations
 VERSION ?= v1.0.0-local
 
-.PHONY: help build docker-build clean run up down restart deps fmt lint swag migrate-up migrate-down db-reset logs ps shell test test-verbose test-cover test-cover-html
+.PHONY: help build docker-build clean run up down restart deps fmt lint swag migrate-up migrate-down migrate-create db-reset logs ps shell test test-verbose test-cover test-cover-html
 
 # генерация документации по регуляркам. Для документации команды обязательно должно быть вот так <название_команды>: ## документация
 help: ## список всех доступных команд
