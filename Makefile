@@ -6,7 +6,7 @@ MAIN_PATH = cmd/monitor/main.go
 MIGRATIONS_DIR = ./migrations
 VERSION ?= v1.0.0-local
 
-.PHONY: help build docker-build clean run up down restart deps fmt lint test swag migrate-up migrate-down db-reset logs ps shell migrate-create
+.PHONY: help build docker-build clean run up down restart deps fmt lint swag migrate-up migrate-down db-reset logs ps shell test test-verbose test-cover test-cover-html
 
 # генерация документации по регуляркам. Для документации команды обязательно должно быть вот так <название_команды>: ## документация
 help: ## список всех доступных команд
@@ -43,8 +43,19 @@ fmt: ## форматирование всего проекта
 lint: ## проверка линтерос
 	golangci-lint run
 
-test: ## запуск тестов (пока тестов нет)
+test: ## запуск всех тестов
+	go test ./...
+
+test-verbose: ## запуск тестов с подробным выводом (флаг -v)
 	go test -v ./...
+
+test-cover: ## запуск тестов с отображением процента покрытия
+	go test -cover ./...
+
+test-cover-html: ## запуск тестов с выводом метрик покрытия в html
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Отчет сохранен в coverage.html"
 
 swag: ## генерация документации Swagger
 	$(shell go env GOPATH)/bin/swag init -g $(MAIN_PATH)
