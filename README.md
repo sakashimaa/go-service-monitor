@@ -1,8 +1,27 @@
+![CI](https://github.com/sakashimaa/go-service-monitor/actions/workflows/ci.yml/badge.svg)
+
 # Site Monitor
 
 ## Назначение сервиса
 
 Данный сервис предназначен для мониторинга работы и доступности сайтов по адресам, указанным в конфигурации
+
+---
+
+## CI/CD
+
+При каждом push и pull request в `main` автоматически запускается GitHub Actions pipeline (`.github/workflows/ci.yml`), который:
+
+- прогоняет все тесты (`go test -coverprofile=coverage.out ./...`) и выводит покрытие кода;
+- запускает `golangci-lint` по конфигурации `.golangci.yml`.
+
+Если тесты или линтер падают - pipeline завершается с ошибкой и merge в `main` заблокирован (Required status checks).
+
+Посмотреть результаты можно во вкладке **Actions** репозитория. Отчёт о покрытии (`coverage.out`) доступен как артефакт сборки - можно скачать и открыть локально:
+
+```bash
+go tool cover -html=coverage.out -o coverage.html
+```
 
 ---
 
@@ -122,11 +141,7 @@ brew install golangci/tap/golangci-lint
 **Arch Linux:**
 
 ```bash
-yay -S golangci-lint
-# или
-sudo pacman -S golangci-lint
-# или
-sudo snap install golangci-lint --classic
+curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
 ```
 
 ---
