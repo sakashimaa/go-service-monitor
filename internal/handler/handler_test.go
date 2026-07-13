@@ -216,7 +216,7 @@ func TestDeleteSite(t *testing.T) {
 			name: "site not found -> 404",
 			id:   validID,
 			deleteSiteFunc: func(ctx context.Context, id string) error {
-				return repository.ErrSiteNotFound
+				return domain.ErrSiteNotFound
 			},
 			wantStatus: http.StatusNotFound,
 		},
