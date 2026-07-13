@@ -13,7 +13,7 @@ func writeTestConfig(t *testing.T, content string) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write yaml contents: %v", err)
 	}
 

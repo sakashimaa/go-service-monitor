@@ -1,11 +1,11 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
   go: '1.25'
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck      # проверяет что все ошибки обрабатываются
     - govet         # классический линтер от разработчиков Go
@@ -14,10 +14,12 @@ linters:
     - gocritic      # ловит антипаттерны
     - gosec         # ищет уязвимости в безопасности
     - unused        # неиспользуемые константы, функции и типы
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
 
 formatters:
   enable:
     - goimports
-
-issues:
-  exclude-use-default: false
