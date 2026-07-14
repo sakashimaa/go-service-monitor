@@ -103,7 +103,7 @@ func TestCheckSite(t *testing.T) {
 			}
 
 			if res.ResponseTime > elapsed+50*time.Millisecond {
-				t.Errorf("ResponseTime %v differentiate to much with real elapsed %v", res.ResponseCode, elapsed)
+				t.Errorf("ResponseTime %v differentiate to much with real elapsed %v", res.ResponseTime, elapsed)
 			}
 
 			if res.URL != server.URL {

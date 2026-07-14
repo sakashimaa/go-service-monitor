@@ -205,7 +205,7 @@ func TestDeleteSite(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "successful creation -> 204",
+			name: "successful deletion -> 204",
 			id:   validID,
 			deleteSiteFunc: func(ctx context.Context, id string) error {
 				return nil

@@ -63,10 +63,6 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to validate config: %w", err)
 	}
 
-	if cfg.Pool.MinConns > cfg.Pool.MaxConns {
-		return nil, errors.New("pool.min_conns must not exceed pool.max_conns")
-	}
-
 	return &cfg, nil
 }
 
@@ -85,6 +81,10 @@ func validate(cfg *Config) error {
 
 	if cfg.Timeout <= 0 {
 		return errors.New("timeout must be a positive duration")
+	}
+
+	if cfg.Pool.MinConns > cfg.Pool.MaxConns {
+		return errors.New("pool.min_conns must not exceed pool.max_conns")
 	}
 
 	for _, site := range cfg.Sites {

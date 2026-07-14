@@ -27,6 +27,7 @@ func TestLoad(t *testing.T) {
 		envVars     map[string]string
 		wantErr     bool
 		wantErrSub  string // подстрока которая обязана быть в тексте ошибки
+		checkCfg    func(t *testing.T, cfg *Config)
 	}{
 		{
 			name: "полный корректный конфиг",
@@ -163,6 +164,28 @@ server:
 			wantErr:    true,
 			wantErrSub: "unsupported url scheme",
 		},
+		{
+			name: "pool.max_conns не задан — применяется дефолт 10",
+			yamlContent: `
+check_interval: 5s
+timeout: 10s
+server:
+  port: 8080
+`,
+			envVars: map[string]string{
+				"DATABASE_URL": "postgres://test:test@localhost:5432/test",
+			},
+			wantErr: false,
+			checkCfg: func(t *testing.T, cfg *Config) {
+				t.Helper()
+				if cfg.Pool.MaxConns != 10 {
+					t.Errorf("Pool.MaxConns = %d, want default 10", cfg.Pool.MaxConns)
+				}
+				if cfg.Pool.MinConns != 0 {
+					t.Errorf("Pool.MinConns = %d, want default 0", cfg.Pool.MinConns)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -192,6 +215,10 @@ server:
 
 			if cfg == nil {
 				t.Fatal("cfg = nil, even with no error")
+			}
+
+			if tt.checkCfg != nil {
+				tt.checkCfg(t, cfg)
 			}
 		})
 	}
