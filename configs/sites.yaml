@@ -19,8 +19,6 @@ sites:
     url: "https://nvidia.com"
   - name: "Gmail"
     url: "https://gmail.com"
-  - name: "Bad Protocol"
-    url: "jajahaha123123.qweqwe"
 server:
   port: 8080
   read_timeout: 5s

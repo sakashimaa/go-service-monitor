@@ -148,7 +148,7 @@ func (h *HTTPHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // @Tags         sites
 // @Produce      json
 // @Param        id   path      string  true  "id сайта"
-// @Success      200  {object}  domain.SiteStatus
+// @Success      200  {object}  domain.CheckHistory
 // @Failure      400  {string}  string "invalid id format"
 // @Failure      404  {string}  string "site not found"
 // @Router       /sites/{id}/status [get]

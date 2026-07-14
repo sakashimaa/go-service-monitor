@@ -1,8 +1,27 @@
+![CI](https://github.com/sakashimaa/go-service-monitor/actions/workflows/ci.yml/badge.svg)
+
 # Site Monitor
 
 ## Назначение сервиса
 
 Данный сервис предназначен для мониторинга работы и доступности сайтов по адресам, указанным в конфигурации
+
+---
+
+## CI/CD
+
+При каждом push и pull request в `main` автоматически запускается GitHub Actions pipeline (`.github/workflows/ci.yml`), который:
+
+- прогоняет все тесты (`go test -coverprofile=coverage.out ./...`) и выводит покрытие кода;
+- запускает `golangci-lint` по конфигурации `.golangci.yml`.
+
+Если тесты или линтер падают - pipeline завершается с ошибкой и merge в `main` заблокирован (Required status checks).
+
+Посмотреть результаты можно во вкладке **Actions** репозитория. Отчёт о покрытии (`coverage.out`) доступен как артефакт сборки - можно скачать и открыть локально:
+
+```bash
+go tool cover -html=coverage.out -o coverage.html
+```
 
 ---
 
@@ -14,26 +33,29 @@
 make help
 ```
 
-| Команда            | Описание                                           |
-|--------------------|----------------------------------------------------|
-| `make build`       | Локальная сборка бинарника в `bin/`                |
-| `make docker-build`| Сборка Docker-образа                               |
-| `make clean`       | Очистка артефактов сборки (`bin/`)                 |
-| `make run`         | Генерация Swagger-документации и запуск сервиса    |
-| `make up`          | Сборка и запуск контейнеров                        |
-| `make down`        | Остановка контейнеров (данные БД сохраняются)      |
-| `make restart`     | Перезапуск контейнеров                             |
-| `make deps`        | Загрузка и актуализация зависимостей               |
-| `make fmt`         | Форматирование всего проекта                       |
-| `make lint`        | Проверка линтером                                  |
-| `make test`        | Запуск тестов                                      |
-| `make swag`        | Генерация Swagger-документации                     |
-| `make migrate-up`  | Применение миграций БД                             |
-| `make migrate-down`| Откат миграций БД                                  |
-| `make db-reset`    | Удаление данных БД и перезапуск контейнера postgres|
-| `make logs`        | Просмотр логов контейнеров в реальном времени      |
-| `make ps`          | Просмотр статуса запущенных контейнеров            |
-| `make shell`       | Интерактивная консоль внутри контейнера приложения |
+| Команда                | Описание                                            |
+|------------------------|-----------------------------------------------------|
+| `make build`           | Локальная сборка бинарника в `bin/`                 |
+| `make docker-build`    | Сборка Docker-образа                                |
+| `make clean`           | Очистка артефактов сборки (`bin/`)                  |
+| `make run`             | Генерация Swagger-документации и запуск сервиса     |
+| `make up`              | Сборка и запуск контейнеров                         |
+| `make down`            | Остановка контейнеров (данные БД сохраняются)       |
+| `make restart`         | Перезапуск контейнеров                              |
+| `make deps`            | Загрузка и актуализация зависимостей                |
+| `make fmt`             | Форматирование всего проекта                        |
+| `make lint`            | Проверка линтером                                   |
+| `make test`            | Запуск тестов                                       |
+| `make test-verbose`    | Запуск тестов с подробным выводом                   |
+| `make test-cover`      | Запуск тестов с выводом процента покрытия           | 
+| `make test-cover-html` | Запуск тестов с выводом покрытия в html             |
+| `make swag`            | Генерация Swagger-документации                      |
+| `make migrate-up`      | Применение миграций БД                              |
+| `make migrate-down`    | Откат миграций БД                                   |
+| `make db-reset`        | Удаление данных БД и перезапуск контейнера postgres |
+| `make logs`            | Просмотр логов контейнеров в реальном времени       |
+| `make ps`              | Просмотр статуса запущенных контейнеров             |
+| `make shell`           | Интерактивная консоль внутри контейнера приложения  |
 
 ---
 
@@ -75,6 +97,37 @@ make lint
 make test
 ```
 
+Запуск с подробным выводом:
+
+```bash
+make test-verbose
+```
+
+Запуск с отображением покрытия кода тестами:
+
+```bash
+make test-cover
+```
+
+Генерация HTML отчета о покрытии с конкретными строками
+
+```bash
+make test-cover-html
+```
+
+После генерации отчёт можно открыть в браузере:
+
+```bash
+open coverage.html   # macOS
+xdg-open coverage.html   # Linux
+```
+
+Запуск конкретного теста по имени:
+
+```bash
+go test -run TestCheckerRun ./internal/checker/...
+```
+
 ---
 
 ## Установка линтера
@@ -88,11 +141,7 @@ brew install golangci/tap/golangci-lint
 **Arch Linux:**
 
 ```bash
-yay -S golangci-lint
-# или
-sudo pacman -S golangci-lint
-# или
-sudo snap install golangci-lint --classic
+curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
 ```
 
 ---
