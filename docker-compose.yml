@@ -4,6 +4,7 @@ networks:
 
 volumes:
   pg_data:
+  kafka_data:
 
 services:
   postgres:
@@ -27,6 +28,76 @@ services:
       timeout: 5s
       retries: 5
 
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: monitor-kafka
+    restart: unless-stopped
+    ports:
+      - "29092:29092"
+    networks:
+      - monitor-network
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    environment:
+      CLUSTER_ID: 'DJpKb43JQYOwYcY2GgkrkA'
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+
+      # INTERNAL - для общения между контейнерами (app -> kafka:9092)
+      # EXTERNAL - для подключения с хост машины (29092 порт)
+      # CONTROLLER - для kraft, служебный
+      KAFKA_LISTENERS: 'INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092'
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:9092,EXTERNAL://localhost:29092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
+
+      # на локалке одна реплика, на проде обязательно минимум 3 с несколькими брокерами (3 брокера по 3 реплики на каждого)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # топики создадим через kafka-init, здесь явно выключим
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: monitor-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - monitor-network
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic site-check-events --partitions 3 --replication-factor 1
+        echo "Список топиков после инициализации:"
+        kafka-topics --bootstrap-server kafka:9092 --list
+    restart: "no"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: monitor-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - monitor-network
+    environment:
+      KAFKA_CLUSTERS_0_NAME: monitor-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   app:
     build:
       context: .
@@ -41,8 +112,12 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      # обращаемся по имени сервиса, а не по localhost, так резолвится внутри monitor-network
+      - KAFKA_BROKERS=kafka:9092
     depends_on:
       postgres:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     # Пробрасываем локальную папку ./configs внутрь контейнера чтоб он подхватывался без перезапуска. :ro означает readonly
     # Чтоб приложене случайно не затерло конфиг
