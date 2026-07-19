@@ -20,6 +20,12 @@ type Config struct {
 	DatabaseURL   string        `envconfig:"DATABASE_URL"`
 	Pool          PoolConfig    `yaml:"pool"`
 	Server        `yaml:"server"`
+	Broker        `yaml:"broker"`
+}
+
+type Broker struct {
+	BrokerURL string `yaml:"broker_url" envconfig:"BROKER_URL"`
+	Topic     string `yaml:"topic" envconfig:"KAFKA_TOPIC"`
 }
 
 type PoolConfig struct {
@@ -85,6 +91,14 @@ func validate(cfg *Config) error {
 
 	if cfg.Pool.MinConns > cfg.Pool.MaxConns {
 		return errors.New("pool.min_conns must not exceed pool.max_conns")
+	}
+
+	if cfg.BrokerURL == "" {
+		return errors.New("broker.brokerURL must be non-empty")
+	}
+
+	if cfg.Topic == "" {
+		return errors.New("broker.topic must be non-empty")
 	}
 
 	for _, site := range cfg.Sites {

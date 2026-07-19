@@ -17,6 +17,7 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/domain"
 	"github.com/sakashimaa/site-monitor/internal/handler"
+	"github.com/sakashimaa/site-monitor/internal/messaging"
 	"github.com/sakashimaa/site-monitor/internal/repository"
 	"github.com/sakashimaa/site-monitor/internal/scheduler"
 	"github.com/sakashimaa/site-monitor/internal/service"
@@ -99,7 +100,17 @@ func run() error {
 
 	apiServer := api.NewServer(cfg, hndl)
 
-	sched := scheduler.NewScheduler(cfg, repo, historyRepo)
+	producer := messaging.NewKafkaProducer(messaging.KafkaProducerConfig{
+		BrokerURL: cfg.BrokerURL,
+		Topic:     cfg.Topic,
+	})
+	defer func() {
+		if err := producer.Close(); err != nil {
+			slog.Error("failed to close kafka producer", slog.String("error", err.Error()))
+		}
+	}()
+
+	sched := scheduler.NewScheduler(cfg, repo, historyRepo, producer)
 
 	slog.Info(
 		"Site Monitor started",

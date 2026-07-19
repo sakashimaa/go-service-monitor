@@ -10,6 +10,7 @@ import (
 	"github.com/sakashimaa/site-monitor/internal/checker"
 	"github.com/sakashimaa/site-monitor/internal/config"
 	"github.com/sakashimaa/site-monitor/internal/domain"
+	"github.com/sakashimaa/site-monitor/internal/messaging"
 	"github.com/sakashimaa/site-monitor/internal/repository"
 )
 
@@ -19,12 +20,14 @@ type Scheduler struct {
 	wg          sync.WaitGroup
 	repo        repository.SiteRepository
 	historyRepo repository.CheckHistoryRepository
+	publisher   messaging.EventPublisher
 }
 
 func NewScheduler(
 	config *config.Config,
 	repo repository.SiteRepository,
 	historyRepo repository.CheckHistoryRepository,
+	publisher messaging.EventPublisher,
 ) *Scheduler {
 	return &Scheduler{
 		config:      config,
@@ -32,6 +35,7 @@ func NewScheduler(
 		wg:          sync.WaitGroup{},
 		repo:        repo,
 		historyRepo: historyRepo,
+		publisher:   publisher,
 	}
 }
 
@@ -80,6 +84,19 @@ func (s *Scheduler) Start(ctx context.Context) {
 			}
 			if err := s.historyRepo.Create(c, h); err != nil {
 				slog.Error("failed to create history record", slog.String("error", err.Error()))
+			}
+
+			event := messaging.SiteCheckEvent{
+				SiteID:       site.ID,
+				URL:          site.URL,
+				StatusCode:   res.ResponseCode,
+				IsAvailable:  res.AvailableStatus,
+				ResponseTime: res.ResponseTime.Milliseconds(),
+				CheckedAt:    time.Now(),
+				ErrorMessage: errStr,
+			}
+			if err := s.publisher.Publish(c, event); err != nil {
+				slog.Error("failed to publish event", slog.String("site_id", site.ID), slog.String("error", err.Error()))
 			}
 
 			if res.Error != nil {

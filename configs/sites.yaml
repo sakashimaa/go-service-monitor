@@ -1,5 +1,8 @@
 check_interval: 5s
 timeout: 10s
+broker:
+  broker_url: "kafka:9092"
+  topic: "site-check-events"
 sites:
   - name: "Google"
     url: "https://google.com"
