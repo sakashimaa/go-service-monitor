@@ -56,11 +56,12 @@ func NewKafkaProducer(cfg KafkaProducerConfig) *KafkaProducer {
 	}
 
 	p := &KafkaProducer{
-		writer: writer,
-		topic:  cfg.Topic,
-		cfg:    cfg,
-		events: make(chan SiteCheckEvent, cfg.QueueSize),
-		done:   make(chan struct{}),
+		writer:  writer,
+		topic:   cfg.Topic,
+		cfg:     cfg,
+		events:  make(chan SiteCheckEvent, cfg.QueueSize),
+		done:    make(chan struct{}),
+		stopped: make(chan struct{}),
 	}
 	go p.run()
 	return p
@@ -77,6 +78,8 @@ func (p *KafkaProducer) Publish(_ context.Context, event SiteCheckEvent) error {
 }
 
 func (p *KafkaProducer) run() {
+	defer close(p.stopped)
+
 	for {
 		select {
 		case e := <-p.events:
@@ -136,9 +139,11 @@ func (p *KafkaProducer) writeWithRetry(event SiteCheckEvent) {
 }
 
 func (p *KafkaProducer) Close() error {
+	var err error
 	p.closeOnce.Do(func() {
 		close(p.done)
 		<-p.stopped
+		err = p.writer.Close()
 	})
-	return p.writer.Close()
+	return err
 }

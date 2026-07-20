@@ -104,11 +104,6 @@ func run() error {
 		BrokerURL: cfg.BrokerURL,
 		Topic:     cfg.Topic,
 	})
-	defer func() {
-		if err := producer.Close(); err != nil {
-			slog.Error("failed to close kafka producer", slog.String("error", err.Error()))
-		}
-	}()
 
 	sched := scheduler.NewScheduler(cfg, repo, historyRepo, producer)
 
@@ -137,17 +132,16 @@ func run() error {
 
 	go sched.Start(ctx)
 
+	var runErr error
 	select {
 	case <-ctx.Done():
 		slog.Info("received shutdown signal...")
 	case err := <-serverErr:
 		slog.Error("HTTP Server crashed", slog.String("error", err.Error()))
-		return fmt.Errorf("http server failed: %w", err)
+		runErr = fmt.Errorf("http server failed: %w", err)
 	}
 
 	slog.Info("Shutting down...")
-
-	sched.Stop()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
@@ -156,6 +150,13 @@ func run() error {
 		slog.Error("HTTP Server failed to shutdown", slog.String("error", err.Error()))
 	}
 
+	cancel()
+	sched.Stop()
+
+	if err := producer.Close(); err != nil {
+		slog.Warn("failed to close producer", slog.String("error", err.Error()))
+	}
+
 	slog.Info("Site monitor stopped gracefully.")
-	return nil
+	return runErr
 }

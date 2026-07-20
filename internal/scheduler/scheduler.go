@@ -21,6 +21,7 @@ type Scheduler struct {
 	repo        repository.SiteRepository
 	historyRepo repository.CheckHistoryRepository
 	publisher   messaging.EventPublisher
+	once        sync.Once
 }
 
 func NewScheduler(
@@ -29,18 +30,22 @@ func NewScheduler(
 	historyRepo repository.CheckHistoryRepository,
 	publisher messaging.EventPublisher,
 ) *Scheduler {
-	return &Scheduler{
+	sched := &Scheduler{
 		config:      config,
 		done:        make(chan struct{}),
 		wg:          sync.WaitGroup{},
 		repo:        repo,
 		historyRepo: historyRepo,
 		publisher:   publisher,
+		once:        sync.Once{},
 	}
+
+	sched.wg.Add(1)
+
+	return sched
 }
 
 func (s *Scheduler) Start(ctx context.Context) {
-	s.wg.Add(1)
 	defer s.wg.Done()
 
 	ticker := time.NewTicker(s.config.CheckInterval)
@@ -82,9 +87,12 @@ func (s *Scheduler) Start(ctx context.Context) {
 				ResponseTime: res.ResponseTime.Milliseconds(),
 				Error:        errStr,
 			}
-			if err := s.historyRepo.Create(c, h); err != nil {
+
+			writeCtx, cancelWrite := context.WithTimeout(context.WithoutCancel(c), 5*time.Second)
+			if err := s.historyRepo.Create(writeCtx, h); err != nil {
 				slog.Error("failed to create history record", slog.String("error", err.Error()))
 			}
+			cancelWrite()
 
 			event := messaging.SiteCheckEvent{
 				SiteID:       site.ID,
@@ -141,6 +149,8 @@ func (s *Scheduler) Start(ctx context.Context) {
 }
 
 func (s *Scheduler) Stop() {
-	close(s.done)
-	s.wg.Wait()
+	s.once.Do(func() {
+		close(s.done)
+		s.wg.Wait()
+	})
 }
